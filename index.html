@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>토너먼트 12BB 레지 알람</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #121212; color: #fff; text-align: center; margin: 0; padding: 20px; transition: background-color 0.3s; }
+        h1 { color: #f5a623; }
+        #time-display { font-size: 3em; font-weight: bold; margin: 20px 0; color: #4CAF50; }
+        #next-alarm { font-size: 1.5em; margin-bottom: 20px; color: #ff9800; }
+        button { background-color: #f5a623; border: none; padding: 15px 30px; font-size: 1.2em; font-weight: bold; border-radius: 5px; cursor: pointer; color: #000; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: background-color 0.2s; }
+        button:hover { filter: brightness(1.1); }
+        /* 알람 켜졌을 때 버튼 색상 (빨간색 계열) */
+        button.active { background-color: #e53935; color: #fff; }
+        
+        table { margin: 30px auto; border-collapse: collapse; width: 90%; max-width: 800px; background-color: #1e1e1e; }
+        th, td { border: 1px solid #444; padding: 10px; text-align: center; }
+        th { background-color: #333; color: #f5a623; }
+        .highlight { background-color: #ff9800 !important; color: #000; font-weight: bold; }
+        .past { color: #777; }
+        
+        @keyframes flash {
+            0%, 100% { background-color: #121212; }
+            50% { background-color: #b71c1c; }
+        }
+        .flashing { animation: flash 1s infinite; }
+    </style>
+</head>
+<body>
+
+    <h1>토너먼트 12BB 레지 알람</h1>
+    
+    <!-- 켜고 끌 수 있는 토글 버튼으로 변경 -->
+    <button id="toggle-btn">알람 켜기 (현재 꺼짐)</button>
+    
+    <div id="time-display">00:00:00</div>
+    <div id="next-alarm">다음 알람: 계산 중...</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>일정</th>
+                <th>시작 시간</th>
+                <th>토너먼트명</th>
+                <th>12BB Reg. Time</th>
+            </tr>
+        </thead>
+        <tbody id="schedule-body">
+            <!-- 자바스크립트로 표 생성 -->
+        </tbody>
+    </table>
+
+    <script>
+        // 이미지에서 추출한 데이터
+        const rawSchedule = [
+            { type: "매일", time: "0:00", name: "비기너스 4억 GTD", regTime: "0:20" },
+            { type: "매일", time: "0:15", name: "워밍업 40억 GTD", regTime: "1:09" },
+            { type: "매일", time: "0:30", name: "워밍업 터보 20억 GTD", regTime: "0:58" },
+            { type: "매일", time: "1:30", name: "루키스 터보 3억 GTD", regTime: "1:50" },
+            { type: "매일", time: "2:15", name: "스텝업 터보 10억 GTD", regTime: "2:43" },
+            { type: "매일", time: "2:30", name: "워밍업 35억 GTD", regTime: "3:24" },
+            { type: "매일", time: "3:15", name: "루키스 터보 4억 GTD", regTime: "3:35" },
+            { type: "매일", time: "3:30", name: "워밍업 35억 GTD", regTime: "4:24" },
+            { type: "매일", time: "4:15", name: "스텝업 터보 7억 GTD", regTime: "4:43" },
+            { type: "매일", time: "5:00", name: "워밍업 20억 GTD", regTime: "5:54" },
+            { type: "매일", time: "5:15", name: "루키스 터보 3.5억 GTD", regTime: "5:35" },
+            { type: "매일", time: "6:15", name: "루키스 터보 5억 GTD", regTime: "6:35" },
+            { type: "매일", time: "7:15", name: "루키스 2.7억 GTD", regTime: "7:35" },
+            { type: "매일", time: "7:30", name: "스텝업 터보 12억 GTD", regTime: "7:58" },
+            { type: "매일", time: "8:15", name: "루키스 터보 7억 GTD", regTime: "8:35" },
+            { type: "매일", time: "9:15", name: "루키스 2억 GTD", regTime: "9:35" },
+            { type: "매일", time: "9:30", name: "스텝업 터보 15억 GTD", regTime: "9:58" },
+            { type: "매일", time: "10:15", name: "루키스 터보 5억 GTD", regTime: "10:35" },
+            { type: "매일", time: "10:30", name: "워밍업 터보 20억 GTD", regTime: "10:58" },
+            { type: "매일", time: "11:30", name: "루키스 터보 3억 GTD", regTime: "11:50" },
+            { type: "매일", time: "11:30", name: "워밍업 35억 GTD", regTime: "12:24" },
+            { type: "매일", time: "12:15", name: "워밍업 터보 17억 GTD", regTime: "12:43" },
+            { type: "매일", time: "12:30", name: "루키스 터보 8억 GTD", regTime: "12:54" },
+            { type: "매일", time: "13:15", name: "워밍업 20억 GTD", regTime: "14:09" },
+            { type: "매일", time: "13:30", name: "스텝업 터보 10억 GTD", regTime: "13:58" },
+            { type: "매일", time: "14:00", name: "비기너스 4억 GTD", regTime: "14:20" },
+            { type: "매일", time: "14:15", name: "스텝업 터보 7억 GTD", regTime: "14:43" },
+            { type: "매일", time: "14:30", name: "워밍업 터보 24억 GTD", regTime: "14:58" },
+            { type: "매일", time: "15:30", name: "루키스 터보 5억 GTD", regTime: "15:50" },
+            { type: "매일", time: "16:15", name: "스텝업 터보 9억 GTD", regTime: "16:43" },
+            { type: "매일", time: "16:30", name: "워밍업 터보 24억 GTD", regTime: "16:58" },
+            { type: "매일", time: "17:15", name: "워밍업 25억 GTD", regTime: "18:09" },
+            { type: "매일", time: "17:30", name: "루키스 3억 GTD", regTime: "17:50" },
+            { type: "매일", time: "18:15", name: "스텝업 터보 9억 GTD", regTime: "18:43" },
+            { type: "매일", time: "18:15", name: "클래식 70억 GTD", regTime: "19:09" },
+            { type: "매일", time: "18:30", name: "워밍업 터보 24억 GTD", regTime: "18:58" },
+            { type: "매일", time: "19:15", name: "워밍업 터보 24억 GTD", regTime: "19:43" },
+            { type: "매일", time: "19:30", name: "클래식 50억 GTD", regTime: "20:24" },
+            { type: "매일", time: "19:30", name: "루키스 터보 5억 GTD", regTime: "19:50" },
+            { type: "매일", time: "20:00", name: "비기너스 4억 GTD", regTime: "20:20" },
+            { type: "매일", time: "20:15", name: "스텝업 터보 14억 GTD", regTime: "20:43" },
+            { type: "평일", time: "21:00", name: "데일리 미니 메인 150억 GTD(평일)", regTime: "21:54" },
+            { type: "주말", time: "21:15", name: "클래식 60억 GTD(주말)", regTime: "22:09" },
+            { type: "매일", time: "21:30", name: "스텝업 터보 15억 GTD(매일)", regTime: "21:58" },
+            { type: "매일", time: "22:15", name: "스텝업 터보 18억 GTD", regTime: "22:43" },
+            { type: "매일", time: "23:15", name: "스텝업 터보 18억 GTD", regTime: "23:43" }
+        ];
+
+        let alarmEnabled = false;
+        let lastAlarmedTime = "";
+
+        // 시간 문자열 포맷팅
+        function formatTimeStr(timeStr) {
+            let [h, m] = timeStr.split(':');
+            return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+        }
+
+        // 오늘의 요일에 맞는 일정 필터링
+        function getTodaySchedule() {
+            const today = new Date().getDay();
+            const isWeekend = today === 0 || today === 6;
+
+            return rawSchedule.filter(item => {
+                if (item.type === "매일") return true;
+                if (item.type === "평일" && !isWeekend) return true;
+                if (item.type === "주말" && isWeekend) return true;
+                return false;
+            }).map(item => ({
+                ...item,
+                formattedRegTime: formatTimeStr(item.regTime)
+            })).sort((a, b) => a.formattedRegTime.localeCompare(b.formattedRegTime));
+        }
+
+        const schedule = getTodaySchedule();
+        const tbody = document.getElementById('schedule-body');
+
+        // 테이블 렌더링
+        function renderTable(currentTimeStr) {
+            tbody.innerHTML = '';
+            schedule.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.id = `row-${index}`;
+                
+                if (item.formattedRegTime < currentTimeStr) {
+                    tr.className = 'past';
+                }
+
+                tr.innerHTML = `
+                    <td>${item.type}</td>
+                    <td>${item.time}</td>
+                    <td>${item.name}</td>
+                    <td>${item.regTime}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 소리 알람 및 음성 합성
+        function playAlarm(tournamentName) {
+            if (!alarmEnabled) return;
+            
+            document.body.classList.add('flashing');
+            setTimeout(() => document.body.classList.remove('flashing'), 5000);
+
+            const utterance = new SpeechSynthesisUtterance(`${tournamentName}, 12비비 레지 시간입니다.`);
+            utterance.lang = 'ko-KR';
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // 매초 업데이트
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            const currentTimeStr = `${h}:${m}`;
+            
+            document.getElementById('time-display').textContent = `${h}:${m}:${s}`;
+
+            let nextAlarmFound = false;
+            
+            schedule.forEach((item, index) => {
+                const row = document.getElementById(`row-${index}`);
+                if (!row) return;
+
+                if (item.formattedRegTime === currentTimeStr) {
+                    row.className = 'highlight';
+                    if (lastAlarmedTime !== currentTimeStr) {
+                        playAlarm(item.name);
+                        lastAlarmedTime = currentTimeStr;
+                    }
+                } else if (item.formattedRegTime > currentTimeStr) {
+                    row.classList.remove('highlight');
+                    if (!nextAlarmFound) {
+                        document.getElementById('next-alarm').textContent = `다음 12BB 레지: [${item.regTime}] ${item.name}`;
+                        nextAlarmFound = true;
+                    }
+                }
+            });
+
+            if (!nextAlarmFound) {
+                document.getElementById('next-alarm').textContent = "오늘 남은 일정이 없습니다.";
+            }
+        }
+
+        // 알람 켜기/끄기 토글 이벤트
+        document.getElementById('toggle-btn').addEventListener('click', function() {
+            alarmEnabled = !alarmEnabled;
+            
+            if (alarmEnabled) {
+                // 알람 켜짐 상태
+                this.textContent = "알람 끄기 (현재 작동 중)";
+                this.classList.add('active');
+                
+                // 음성 권한 획득
+                const dummyUtterance = new SpeechSynthesisUtterance('');
+                window.speechSynthesis.speak(dummyUtterance);
+            } else {
+                // 알람 꺼짐 상태
+                this.textContent = "알람 켜기 (현재 꺼짐)";
+                this.classList.remove('active');
+                
+                // 진행 중인 알람(음성)이 있다면 즉시 정지
+                window.speechSynthesis.cancel();
+                document.body.classList.remove('flashing');
+            }
+        });
+
+        // 초기화
+        const initialNow = new Date();
+        const initialTimeStr = `${String(initialNow.getHours()).padStart(2, '0')}:${String(initialNow.getMinutes()).padStart(2, '0')}`;
+        
+        renderTable(initialTimeStr);
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body>
+</html>
