@@ -14,12 +14,13 @@
         button:hover { filter: brightness(1.1); }
         button.active { background-color: #e53935; color: #fff; }
         
-        /* 필터 섹션 스타일 (레이아웃 틀어짐 해결) */
-        #filter-section { background-color: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #444; display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; align-items: center; width: 90%; max-width: 950px; margin: 0 auto 30px auto; box-sizing: border-box; }
+        /* 필터 섹션 레이아웃 2줄 분리 */
+        #filter-section { background-color: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; justify-content: center; gap: 15px; align-items: center; width: 90%; max-width: 950px; margin: 0 auto 30px auto; box-sizing: border-box; }
+        .filter-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px; width: 100%; }
         .filter-group { display: flex; align-items: center; gap: 10px; }
         .filter-group label { color: #f5a623; font-weight: bold; }
         .filter-group input { padding: 8px; border-radius: 4px; border: 1px solid #555; background: #252525; color: #fff; width: 100px; font-size: 16px; text-align: right; }
-        .filter-group select { padding: 8px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; font-size: 16px; cursor: pointer; width: 110px; } /* 넓이 고정 추가! */
+        .filter-group select { padding: 8px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; font-size: 16px; cursor: pointer; width: 110px; }
         #target-bb { width: 60px; text-align: center; }
         #apply-btn { padding: 10px 20px; font-size: 1em; background-color: #4CAF50; color: #fff; border-radius: 4px; margin: 0; }
 
@@ -47,31 +48,37 @@
 
     <!-- 필터 섹션 -->
     <div id="filter-section">
-        <div class="filter-group">
-            <label>목표 스택</label>
-            <input type="number" id="target-bb" placeholder="12" value="12">
-            <span style="color: #fff; font-weight: bold; margin-left: -5px;">BB</span>
+        <!-- 첫 번째 줄: 목표 스택 -->
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>목표 스택</label>
+                <input type="number" id="target-bb" placeholder="12" value="12">
+                <span style="color: #fff; font-weight: bold; margin-left: -5px;">BB</span>
+            </div>
         </div>
-        <!-- 구분선 추가 -->
-        <div class="filter-group" style="margin-left: 10px; border-left: 1px solid #444; padding-left: 20px;">
-            <label>최소 바이인</label>
-            <input type="number" id="min-val" placeholder="0">
-            <select id="min-unit">
-                <option value="1">선택 안함</option>
-                <option value="10000" selected>만</option>
-                <option value="100000000">억</option>
-            </select>
+        
+        <!-- 두 번째 줄: 최소/최대 바이인 + 버튼 -->
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>최소 바이인</label>
+                <input type="number" id="min-val" placeholder="0">
+                <select id="min-unit">
+                    <option value="1">선택 안함</option>
+                    <option value="10000" selected>만</option>
+                    <option value="100000000">억</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>최대 바이인</label>
+                <input type="number" id="max-val" placeholder="제한 없음">
+                <select id="max-unit">
+                    <option value="1">선택 안함</option>
+                    <option value="10000" selected>만</option>
+                    <option value="100000000">억</option>
+                </select>
+            </div>
+            <button id="apply-btn">필터 적용</button>
         </div>
-        <div class="filter-group">
-            <label>최대 바이인</label>
-            <input type="number" id="max-val" placeholder="제한 없음">
-            <select id="max-unit">
-                <option value="1">선택 안함</option>
-                <option value="10000" selected>만</option>
-                <option value="100000000">억</option>
-            </select>
-        </div>
-        <button id="apply-btn">필터 적용</button>
     </div>
 
     <table>
@@ -79,7 +86,6 @@
             <tr>
                 <th>시작 시간</th>
                 <th>토너먼트명</th>
-                <!-- 헤더 숫자도 동적으로 변경됩니다 -->
                 <th><span id="th-target-bb">12</span>BB Reg. Time</th>
             </tr>
         </thead>
@@ -172,7 +178,7 @@
             "프리롤 5천만 GTD": { maxReg: 10, blindUp: 2, startChip: 2000 }
         };
 
-        // 기본 토너먼트 리스트 (regTime은 동적 계산되므로 원본 배열에서는 제외/무시됩니다)
+        // 기본 토너먼트 리스트
         const rawSchedule = [
             { type: "매일", time: "0:00", name: "비기너스 4억 GTD", buyin: 700000 },
             { type: "매일", time: "0:00", name: "클래식 400억 GTD", buyin: 270000000 },
@@ -315,21 +321,21 @@
             let spec = tourneySpecs[tourneyName];
             if (!spec) return startTimeStr; // 스펙 정보 없으면 시작시간 그대로 리턴
 
-            // 1. 몇 번째 레벨에서 목표 BB 미만으로 떨어지는지 계산 (타겟 레벨 도달)
+            // 1. 몇 번째 레벨에서 목표 BB와 같거나 작아지는지 계산 (타겟 레벨 도달)
             let targetLevel = 1;
             for (let i = 1; i < blinds.length; i++) {
                 let bb = spec.startChip / blinds[i];
                 if (bb < targetBB) {
-                    targetLevel = i - 1; // 목표 BB 밑으로 떨어지기 직전 마지막 레벨
+                    targetLevel = i - 1; // 목표 BB 밑으로 떨어지기 직전 레벨
                     break;
                 }
             }
             if (targetLevel < 1) targetLevel = 1;
 
-            // 2. 해당 레벨까지 도달하는 데 걸리는 '순수 게임 시간' 계산
+            // 2. 해당 레벨까지 도달하는 데 걸리는 '게임 내 시간' 계산
             let gameMinutes = (targetLevel - 1) * spec.blindUp;
 
-            // 3. 브레이크 타임(매시 55분~00분)을 고려하여 실제 흐른 시간 시뮬레이션
+            // 3. 브레이크 타임(매시 55분~00분)을 고려한 실제 소요 시간(시뮬레이션) 계산
             let [hour, minute] = startTimeStr.split(':').map(Number);
             let currentRealMins = hour * 60 + minute;
             let left = gameMinutes;
@@ -337,8 +343,7 @@
             while (left > 0) {
                 let m = currentRealMins % 60;
                 if (m >= 55) {
-                    // 매시 55분부터 정각까지는 브레이크! 
-                    // 레지 마감 시간은 흐르지만, 게임 내부 블라인드업 시간은 흐르지 않음.
+                    // 매시 55분부터 60분까지는 브레이크! 게임시간은 줄어들지 않고 실제시간만 흐름
                     currentRealMins++;
                 } else {
                     currentRealMins++;
@@ -357,7 +362,6 @@
             return `${String(fHour).padStart(2, '0')}:${String(fMin).padStart(2, '0')}`;
         }
 
-        // 로컬스토리지에 사용자가 입력한 필터값 저장
         function saveFilters() {
             localStorage.setItem('alarmTargetBB', document.getElementById('target-bb').value);
             localStorage.setItem('alarmMinVal', document.getElementById('min-val').value);
@@ -366,7 +370,6 @@
             localStorage.setItem('alarmMaxUnit', document.getElementById('max-unit').value);
         }
 
-        // 로컬스토리지에서 기존 설정 불러오기
         function loadFilters() {
             if (localStorage.getItem('alarmTargetBB') !== null) {
                 document.getElementById('target-bb').value = localStorage.getItem('alarmTargetBB');
@@ -392,7 +395,6 @@
             }
         }
 
-        // 동적으로 최대단위 셀렉트 옵션 바꿔주는 기능
         function updateMaxUnitOptions() {
             const minUnitVal = document.getElementById('min-unit').value;
             const maxUnitEl = document.getElementById('max-unit');
@@ -424,7 +426,7 @@
             const today = new Date().getDay();
             const isWeekend = (today === 0 || today === 6);
 
-            // 목표 BB 필터값 갱신
+            // 목표 BB 갱신
             let targetBBInput = parseFloat(document.getElementById('target-bb').value);
             activeTargetBB = isNaN(targetBBInput) || targetBBInput <= 0 ? 12 : targetBBInput;
             document.getElementById('th-target-bb').innerText = activeTargetBB; // 표 헤더 변경
