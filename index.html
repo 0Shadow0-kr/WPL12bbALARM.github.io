@@ -82,7 +82,7 @@
     </table>
 
     <script>
-        // 이미지에서 추출한 전체 일정 (실제 바이인 금액 포함, 프리롤은 0원으로 처리)
+        // 이미지에서 추출한 전체 일정
         const rawSchedule = [
             { type: "매일", time: "0:00", name: "비기너스 4억 GTD", buyin: 700000, regTime: "0:20" },
             { type: "매일", time: "0:00", name: "클래식 400억 GTD", buyin: 270000000, regTime: "0:54" },
@@ -235,13 +235,58 @@
             if (localStorage.getItem('alarmMinUnit') !== null) {
                 document.getElementById('min-unit').value = localStorage.getItem('alarmMinUnit');
             }
+            
+            // 최대 단위 옵션을 불러온 최소 단위에 맞게 갱신
+            updateMaxUnitOptions();
+
             if (localStorage.getItem('alarmMaxVal') !== null) {
                 document.getElementById('max-val').value = localStorage.getItem('alarmMaxVal');
             }
             if (localStorage.getItem('alarmMaxUnit') !== null) {
-                document.getElementById('max-unit').value = localStorage.getItem('alarmMaxUnit');
+                // 불러온 최대 단위가 현재 존재하는 옵션에 있는지 확인 후 세팅
+                const maxUnitEl = document.getElementById('max-unit');
+                const savedMaxUnit = localStorage.getItem('alarmMaxUnit');
+                if (maxUnitEl.querySelector(`option[value="${savedMaxUnit}"]`)) {
+                    maxUnitEl.value = savedMaxUnit;
+                }
             }
         }
+
+        // ------------------ 추가된 기능: 최소 단위에 따른 최대 단위 동적 변경 ------------------
+        function updateMaxUnitOptions() {
+            const minUnitVal = document.getElementById('min-unit').value;
+            const maxUnitEl = document.getElementById('max-unit');
+            const currentMaxVal = maxUnitEl.value;
+
+            // 기존 옵션 지우기
+            maxUnitEl.innerHTML = '';
+
+            // 최소 단위에 따라 추가할 옵션 결정
+            if (minUnitVal === '1') {
+                // '선택 안함' -> 모두 표시
+                maxUnitEl.innerHTML += '<option value="1">선택 안함</option>';
+                maxUnitEl.innerHTML += '<option value="10000">만</option>';
+                maxUnitEl.innerHTML += '<option value="100000000">억</option>';
+            } else if (minUnitVal === '10000') {
+                // '만' -> '만', '억' 표시
+                maxUnitEl.innerHTML += '<option value="10000">만</option>';
+                maxUnitEl.innerHTML += '<option value="100000000">억</option>';
+            } else if (minUnitVal === '100000000') {
+                // '억' -> '억'만 표시
+                maxUnitEl.innerHTML += '<option value="100000000">억</option>';
+            }
+
+            // 기존에 선택되어 있던 값이 새로 그려진 옵션에 있으면 유지, 없으면 첫 번째 옵션으로 초기화 (예: '억' 강제 고정)
+            if (maxUnitEl.querySelector(`option[value="${currentMaxVal}"]`)) {
+                maxUnitEl.value = currentMaxVal;
+            } else {
+                maxUnitEl.value = maxUnitEl.options[0].value;
+            }
+        }
+
+        // 최소 단위 셀렉트박스가 바뀔 때마다 이벤트 실행
+        document.getElementById('min-unit').addEventListener('change', updateMaxUnitOptions);
+        // ---------------------------------------------------------------------------------
 
         // 바이인 기반 필터링 적용 함수
         function applyFilter() {
@@ -382,7 +427,7 @@
         });
 
         // 페이지 초기 로딩 시 동작
-        loadFilters(); // 저장된 필터 불러오기
+        loadFilters(); // 저장된 필터 불러오기 (이 안에서 updateMaxUnitOptions도 실행됨)
         applyFilter(); // 불러온 필터 적용
         setInterval(updateClock, 1000);
         updateClock();
