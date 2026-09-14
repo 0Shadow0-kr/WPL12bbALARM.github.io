@@ -219,6 +219,30 @@
             return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
         }
 
+        // 로컬 스토리지에 필터값 저장하기
+        function saveFilters() {
+            localStorage.setItem('alarmMinVal', document.getElementById('min-val').value);
+            localStorage.setItem('alarmMinUnit', document.getElementById('min-unit').value);
+            localStorage.setItem('alarmMaxVal', document.getElementById('max-val').value);
+            localStorage.setItem('alarmMaxUnit', document.getElementById('max-unit').value);
+        }
+
+        // 로컬 스토리지에서 필터값 불러오기
+        function loadFilters() {
+            if (localStorage.getItem('alarmMinVal') !== null) {
+                document.getElementById('min-val').value = localStorage.getItem('alarmMinVal');
+            }
+            if (localStorage.getItem('alarmMinUnit') !== null) {
+                document.getElementById('min-unit').value = localStorage.getItem('alarmMinUnit');
+            }
+            if (localStorage.getItem('alarmMaxVal') !== null) {
+                document.getElementById('max-val').value = localStorage.getItem('alarmMaxVal');
+            }
+            if (localStorage.getItem('alarmMaxUnit') !== null) {
+                document.getElementById('max-unit').value = localStorage.getItem('alarmMaxUnit');
+            }
+        }
+
         // 바이인 기반 필터링 적용 함수
         function applyFilter() {
             const today = new Date().getDay();
@@ -271,9 +295,6 @@
                 if (item.formattedRegTime < currentTimeStr) {
                     tr.className = 'past';
                 }
-
-                // 프리롤은 바이인이 0이므로 화면에는 '-' 표시, 그 외는 콤마 표시
-                const buyinText = item.buyin === 0 ? '-' : item.buyin.toLocaleString();
 
                 tr.innerHTML = `
                     <td>${item.time}</td>
@@ -355,12 +376,14 @@
 
         // 필터 적용 버튼 이벤트
         document.getElementById('apply-btn').addEventListener('click', function() {
+            saveFilters(); // 적용할 때마다 로컬 스토리지에 저장
             applyFilter();
             updateClock();
         });
 
-        // 처음 로딩 시 적용 (기본 단위가 '만'이므로 비워두면 0~무한대 필터가 걸림)
-        applyFilter();
+        // 페이지 초기 로딩 시 동작
+        loadFilters(); // 저장된 필터 불러오기
+        applyFilter(); // 불러온 필터 적용
         setInterval(updateClock, 1000);
         updateClock();
     </script>
