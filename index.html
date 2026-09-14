@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>토너먼트 12BB 레지 알람</title>
+    <title>토너먼트 목표BB 레지 알람</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; background-color: #121212; color: #fff; text-align: center; margin: 0; padding: 20px; transition: background-color 0.3s; }
         h1 { color: #f5a623; }
@@ -14,15 +14,16 @@
         button:hover { filter: brightness(1.1); }
         button.active { background-color: #e53935; color: #fff; }
         
-        /* 필터 섹션 스타일 */
-        #filter-section { background-color: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #444; display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; align-items: center; width: 90%; max-width: 850px; margin: 0 auto 30px auto; box-sizing: border-box; }
+        /* 필터 섹션 스타일 (레이아웃 틀어짐 해결) */
+        #filter-section { background-color: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #444; display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; align-items: center; width: 90%; max-width: 950px; margin: 0 auto 30px auto; box-sizing: border-box; }
         .filter-group { display: flex; align-items: center; gap: 10px; }
         .filter-group label { color: #f5a623; font-weight: bold; }
         .filter-group input { padding: 8px; border-radius: 4px; border: 1px solid #555; background: #252525; color: #fff; width: 100px; font-size: 16px; text-align: right; }
-        .filter-group select { padding: 8px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; font-size: 16px; cursor: pointer; width: 110px; }
+        .filter-group select { padding: 8px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; font-size: 16px; cursor: pointer; width: 110px; } /* 넓이 고정 추가! */
+        #target-bb { width: 60px; text-align: center; }
         #apply-btn { padding: 10px 20px; font-size: 1em; background-color: #4CAF50; color: #fff; border-radius: 4px; margin: 0; }
 
-        table { margin: 0 auto 30px auto; border-collapse: collapse; width: 90%; max-width: 850px; background-color: #1e1e1e; }
+        table { margin: 0 auto 30px auto; border-collapse: collapse; width: 90%; max-width: 950px; background-color: #1e1e1e; }
         th, td { border: 1px solid #444; padding: 10px; text-align: center; }
         th { background-color: #333; color: #f5a623; }
         .highlight { background-color: #ff9800 !important; color: #000; font-weight: bold; }
@@ -37,17 +38,22 @@
 </head>
 <body>
 
-    <h1>토너먼트 12BB 레지 알람</h1>
+    <h1>토너먼트 맞춤형 레지 알람</h1>
     
-    <!-- 켜고 끌 수 있는 토글 버튼 -->
     <button id="toggle-btn">알람 켜기 (현재 꺼짐)</button>
     
     <div id="time-display">00:00:00</div>
     <div id="next-alarm">다음 알람: 계산 중...</div>
 
-    <!-- 바이인 필터 섹션 -->
+    <!-- 필터 섹션 -->
     <div id="filter-section">
         <div class="filter-group">
+            <label>목표 스택</label>
+            <input type="number" id="target-bb" placeholder="12" value="12">
+            <span style="color: #fff; font-weight: bold; margin-left: -5px;">BB</span>
+        </div>
+        <!-- 구분선 추가 -->
+        <div class="filter-group" style="margin-left: 10px; border-left: 1px solid #444; padding-left: 20px;">
             <label>최소 바이인</label>
             <input type="number" id="min-val" placeholder="0">
             <select id="min-unit">
@@ -73,7 +79,8 @@
             <tr>
                 <th>시작 시간</th>
                 <th>토너먼트명</th>
-                <th>12BB Reg. Time</th>
+                <!-- 헤더 숫자도 동적으로 변경됩니다 -->
+                <th><span id="th-target-bb">12</span>BB Reg. Time</th>
             </tr>
         </thead>
         <tbody id="schedule-body">
@@ -82,136 +89,220 @@
     </table>
 
     <script>
-        // 이미지에서 추출한 전체 일정
+        // 새로 추가된 데이터 1: 블라인드 레벨별 정보
+        const blinds = [
+            0, // index 0 (더미)
+            50, 100, 150, 200, 250, 300, 400, 500, 600, 800,
+            1000, 1200, 1600, 2000, 2400, 2800, 3200, 4000, 5000, 6000,
+            7000, 8000, 10000, 12000, 16000, 20000, 24000, 28000, 32000, 40000,
+            50000, 60000, 70000, 80000, 100000, 120000, 160000, 200000, 240000, 280000,
+            320000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 1200000, 1400000,
+            1600000, 2000000, 2400000, 2800000, 3200000, 3600000, 4000000, 5000000, 6000000, 8000000
+        ];
+
+        // 새로 추가된 데이터 2: 토너먼트 상세 스펙 (레지 마감시간, 블라인드업 시간, 스타팅 칩)
+        const tourneySpecs = {
+            "데일리 메인 1,600억 GTD(평일)": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "데일리 미니 메인 150억 GTD(평일)": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "데일리 스페셜 450억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "데일리 스페셜 500억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "데일리 스페셜 550억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "데일리 스페셜 슈퍼 하이롤러 1,200억 GTD": { maxReg: 122, blindUp: 8, startChip: 10000 },
+            "데일리 스페셜 하이롤러 800억 GTD": { maxReg: 122, blindUp: 8, startChip: 10000 },
+            "루키스 2.7억 GTD": { maxReg: 55, blindUp: 5, startChip: 3000 },
+            "루키스 2억 GTD": { maxReg: 55, blindUp: 5, startChip: 3000 },
+            "루키스 3억 GTD": { maxReg: 55, blindUp: 5, startChip: 3000 },
+            "루키스 터보 3.5억 GTD": { maxReg: 45, blindUp: 4, startChip: 3000 },
+            "루키스 터보 3억 GTD": { maxReg: 45, blindUp: 4, startChip: 3000 },
+            "루키스 터보 4억 GTD": { maxReg: 45, blindUp: 4, startChip: 3000 },
+            "루키스 터보 5억 GTD": { maxReg: 45, blindUp: 4, startChip: 3000 },
+            "루키스 터보 7억 GTD": { maxReg: 45, blindUp: 4, startChip: 3000 },
+            "루키스 터보 8억 GTD": { maxReg: 45, blindUp: 4, startChip: 5000 },
+            "비기너스 1억 GTD": { maxReg: 50, blindUp: 5, startChip: 3000 },
+            "비기너스 4억 GTD": { maxReg: 50, blindUp: 5, startChip: 3000 },
+            "비기너스 4천만 GTD": { maxReg: 50, blindUp: 5, startChip: 3000 },
+            "스텝업 바운티 10억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "스텝업 바운티 16억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "스텝업 바운티 터보 10억 GTD": { maxReg: 53, blindUp: 4, startChip: 6000 },
+            "스텝업 터보 10억 GTD": { maxReg: 45, blindUp: 4, startChip: 6000 },
+            "스텝업 터보 12억 GTD": { maxReg: 53, blindUp: 4, startChip: 6000 },
+            "스텝업 터보 14억 GTD": { maxReg: 45, blindUp: 4, startChip: 6000 },
+            "스텝업 터보 15억 GTD": { maxReg: 53, blindUp: 4, startChip: 6000 },
+            "스텝업 터보 15억 GTD(매일)": { maxReg: 45, blindUp: 4, startChip: 6000 },
+            "스텝업 터보 18억 GTD": { maxReg: 53, blindUp: 4, startChip: 6000 },
+            "스텝업 터보 7억 GTD": { maxReg: 45, blindUp: 4, startChip: 6000 },
+            "스텝업 터보 9억 GTD": { maxReg: 45, blindUp: 4, startChip: 6000 },
+            "워밍업 20억 GTD": { maxReg: 77, blindUp: 5, startChip: 10000 },
+            "워밍업 25억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "워밍업 35억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "워밍업 40억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "워밍업 터보 17억 GTD": { maxReg: 53, blindUp: 4, startChip: 6000 },
+            "워밍업 터보 20억 GTD": { maxReg: 53, blindUp: 4, startChip: 6000 },
+            "워밍업 터보 24억 GTD": { maxReg: 53, blindUp: 4, startChip: 6000 },
+            "위켄드 빌리언즈 3,200억 GTD(주말)": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "위켄드 빌리언즈 미니 100억 GTD(주말)": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 100억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 140억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "클래식 165억 GTD": { maxReg: 94, blindUp: 6, startChip: 10000 },
+            "클래식 170억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "클래식 200억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "클래식 200억 GTD(매일)": { maxReg: 94, blindUp: 6, startChip: 10000 },
+            "클래식 250억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "클래식 260억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "클래식 270억 GTD": { maxReg: 94, blindUp: 6, startChip: 10000 },
+            "클래식 300억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "클래식 330억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "클래식 35억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 370억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "클래식 400억 GTD": { maxReg: 89, blindUp: 6, startChip: 10000 },
+            "클래식 50억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 60억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 60억 GTD(주말)": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 65억 GTD(평일)": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 70억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 80억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 90억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 바운티 160억 GTD": { maxReg: 94, blindUp: 6, startChip: 10000 },
+            "클래식 바운티 220억 GTD": { maxReg: 94, blindUp: 6, startChip: 10000 },
+            "클래식 프리즈아웃 100억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 프리즈아웃 60억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "클래식 프리즈아웃 90억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
+            "프리롤 1억 GTD": { maxReg: 10, blindUp: 2, startChip: 2000 },
+            "프리롤 3천만 GTD": { maxReg: 10, blindUp: 2, startChip: 2000 },
+            "프리롤 5천만 GTD": { maxReg: 10, blindUp: 2, startChip: 2000 }
+        };
+
+        // 기본 토너먼트 리스트 (regTime은 동적 계산되므로 원본 배열에서는 제외/무시됩니다)
         const rawSchedule = [
-            { type: "매일", time: "0:00", name: "비기너스 4억 GTD", buyin: 700000, regTime: "0:20" },
-            { type: "매일", time: "0:00", name: "클래식 400억 GTD", buyin: 270000000, regTime: "0:54" },
-            { type: "매일", time: "0:15", name: "워밍업 40억 GTD", buyin: 35000000, regTime: "1:14" },
-            { type: "매일", time: "0:30", name: "클래식 프리즈아웃 100억 GTD", buyin: 100000000, regTime: "1:24" },
-            { type: "매일", time: "0:30", name: "워밍업 터보 20억 GTD", buyin: 10000000, regTime: "1:03" },
-            { type: "매일", time: "1:00", name: "클래식 300억 GTD", buyin: 165000000, regTime: "1:54" },
-            { type: "매일", time: "1:00", name: "프리롤 3천만 GTD", buyin: 0, regTime: "1:04" },
-            { type: "매일", time: "1:15", name: "클래식 50억 GTD", buyin: 45000000, regTime: "2:14" },
-            { type: "매일", time: "1:30", name: "루키스 터보 3억 GTD", buyin: 3000000, regTime: "1:46" },
-            { type: "매일", time: "1:30", name: "클래식 200억 GTD", buyin: 180000000, regTime: "2:29" },
-            { type: "매일", time: "2:00", name: "클래식 200억 GTD", buyin: 110000000, regTime: "2:54" },
-            { type: "매일", time: "2:00", name: "비기너스 4천만 GTD", buyin: 100000, regTime: "2:20" },
-            { type: "매일", time: "2:15", name: "스텝업 터보 10억 GTD", buyin: 7000000, regTime: "2:43" },
-            { type: "매일", time: "2:30", name: "워밍업 35억 GTD", buyin: 35000000, regTime: "3:29" },
-            { type: "매일", time: "3:00", name: "클래식 300억 GTD", buyin: 330000000, regTime: "3:54" },
-            { type: "매일", time: "3:00", name: "프리롤 3천만 GTD", buyin: 0, regTime: "3:04" },
-            { type: "매일", time: "3:15", name: "루키스 터보 4억 GTD", buyin: 4500000, regTime: "3:31" },
-            { type: "매일", time: "3:30", name: "워밍업 35억 GTD", buyin: 35000000, regTime: "4:29" },
-            { type: "매일", time: "4:00", name: "클래식 260억 GTD", buyin: 280000000, regTime: "4:54" },
-            { type: "매일", time: "4:00", name: "비기너스 4천만 GTD", buyin: 100000, regTime: "4:20" },
-            { type: "매일", time: "4:15", name: "스텝업 터보 7억 GTD", buyin: 6000000, regTime: "4:43" },
-            { type: "매일", time: "4:30", name: "클래식 60억 GTD", buyin: 77000000, regTime: "5:29" },
-            { type: "매일", time: "5:00", name: "워밍업 20억 GTD", buyin: 30000000, regTime: "5:54" },
-            { type: "매일", time: "5:00", name: "프리롤 3천만 GTD", buyin: 0, regTime: "5:04" },
-            { type: "매일", time: "5:15", name: "루키스 터보 3.5억 GTD", buyin: 3000000, regTime: "5:31" },
-            { type: "매일", time: "5:30", name: "스텝업 바운티 터보 10억 GTD", buyin: 10000000, regTime: "5:58" },
-            { type: "매일", time: "6:00", name: "워밍업 35억 GTD", buyin: 50000000, regTime: "6:54" },
-            { type: "매일", time: "6:00", name: "비기너스 4천만 GTD", buyin: 100000, regTime: "6:20" },
-            { type: "매일", time: "6:15", name: "루키스 터보 5억 GTD", buyin: 5000000, regTime: "6:31" },
-            { type: "매일", time: "6:30", name: "스텝업 바운티 10억 GTD", buyin: 10000000, regTime: "7:29" },
-            { type: "매일", time: "7:00", name: "클래식 35억 GTD", buyin: 50000000, regTime: "7:54" },
-            { type: "매일", time: "7:00", name: "프리롤 3천만 GTD", buyin: 0, regTime: "7:04" },
-            { type: "매일", time: "7:15", name: "루키스 2.7억 GTD", buyin: 1500000, regTime: "7:35" },
-            { type: "매일", time: "7:30", name: "스텝업 터보 12억 GTD", buyin: 12000000, regTime: "7:58" },
-            { type: "매일", time: "8:00", name: "클래식 200억 GTD", buyin: 190000000, regTime: "8:54" },
-            { type: "매일", time: "8:00", name: "비기너스 4천만 GTD", buyin: 100000, regTime: "8:20" },
-            { type: "매일", time: "8:15", name: "루키스 터보 7억 GTD", buyin: 5000000, regTime: "8:31" },
-            { type: "매일", time: "8:30", name: "클래식 70억 GTD", buyin: 77000000, regTime: "9:29" },
-            { type: "매일", time: "9:00", name: "클래식 140억 GTD", buyin: 110000000, regTime: "9:54" },
-            { type: "매일", time: "9:00", name: "프리롤 3천만 GTD", buyin: 0, regTime: "9:04" },
-            { type: "매일", time: "9:15", name: "루키스 2억 GTD", buyin: 1200000, regTime: "9:35" },
-            { type: "매일", time: "9:30", name: "스텝업 터보 15억 GTD", buyin: 12000000, regTime: "9:58" },
-            { type: "매일", time: "10:00", name: "클래식 200억 GTD", buyin: 165000000, regTime: "10:54" },
-            { type: "매일", time: "10:00", name: "비기너스 4천만 GTD", buyin: 100000, regTime: "10:20" },
-            { type: "매일", time: "10:15", name: "루키스 터보 5억 GTD", buyin: 5000000, regTime: "10:31" },
-            { type: "매일", time: "10:30", name: "워밍업 터보 20억 GTD", buyin: 12000000, regTime: "11:03" },
-            { type: "매일", time: "11:00", name: "클래식 170억 GTD", buyin: 110000000, regTime: "11:54" },
-            { type: "매일", time: "11:00", name: "프리롤 3천만 GTD", buyin: 0, regTime: "11:04" },
-            { type: "매일", time: "11:15", name: "스텝업 바운티 10억 GTD", buyin: 10000000, regTime: "12:14" },
-            { type: "매일", time: "11:30", name: "루키스 터보 3억 GTD", buyin: 3000000, regTime: "11:46" },
-            { type: "매일", time: "11:30", name: "워밍업 35억 GTD", buyin: 35000000, regTime: "12:29" },
-            { type: "매일", time: "12:00", name: "클래식 370억 GTD", buyin: 220000000, regTime: "12:54" },
-            { type: "매일", time: "12:00", name: "비기너스 1억 GTD", buyin: 200000, regTime: "12:20" },
-            { type: "매일", time: "12:15", name: "워밍업 터보 17억 GTD", buyin: 12000000, regTime: "12:43" },
-            { type: "매일", time: "12:30", name: "클래식 80억 GTD", buyin: 77000000, regTime: "13:29" },
-            { type: "매일", time: "12:30", name: "루키스 터보 8억 GTD", buyin: 5000000, regTime: "12:54" },
-            { type: "매일", time: "13:00", name: "클래식 250억 GTD", buyin: 250000000, regTime: "13:54" },
-            { type: "매일", time: "13:00", name: "프리롤 3천만 GTD", buyin: 0, regTime: "13:04" },
-            { type: "매일", time: "13:15", name: "워밍업 20억 GTD", buyin: 10000000, regTime: "14:14" },
-            { type: "매일", time: "13:30", name: "클래식 80억 GTD", buyin: 60000000, regTime: "14:24" },
-            { type: "매일", time: "13:30", name: "스텝업 터보 10억 GTD", buyin: 7000000, regTime: "13:58" },
-            { type: "매일", time: "14:00", name: "클래식 370억 GTD", buyin: 370000000, regTime: "14:54" },
-            { type: "매일", time: "14:00", name: "비기너스 4억 GTD", buyin: 700000, regTime: "14:20" },
-            { type: "매일", time: "14:15", name: "클래식 90억 GTD", buyin: 80000000, regTime: "15:14" },
-            { type: "매일", time: "14:15", name: "스텝업 터보 7억 GTD", buyin: 6000000, regTime: "14:43" },
-            { type: "매일", time: "14:30", name: "클래식 바운티 160억 GTD", buyin: 160000000, regTime: "15:29" },
-            { type: "매일", time: "14:30", name: "워밍업 터보 24억 GTD", buyin: 12000000, regTime: "15:03" },
-            { type: "매일", time: "15:00", name: "클래식 400억 GTD", buyin: 220000000, regTime: "15:54" },
-            { type: "매일", time: "15:00", name: "프리롤 3천만 GTD", buyin: 0, regTime: "15:04" },
-            { type: "매일", time: "15:15", name: "스텝업 바운티 16억 GTD", buyin: 10000000, regTime: "16:14" },
-            { type: "매일", time: "15:30", name: "클래식 프리즈아웃 60억 GTD", buyin: 60000000, regTime: "16:29" },
-            { type: "매일", time: "15:30", name: "루키스 터보 5억 GTD", buyin: 3000000, regTime: "15:46" },
-            { type: "매일", time: "16:00", name: "클래식 330억 GTD", buyin: 330000000, regTime: "16:54" },
-            { type: "매일", time: "16:00", name: "비기너스 1억 GTD", buyin: 200000, regTime: "16:20" },
-            { type: "매일", time: "16:15", name: "클래식 90억 GTD", buyin: 80000000, regTime: "17:14" },
-            { type: "매일", time: "16:15", name: "스텝업 터보 9억 GTD", buyin: 6000000, regTime: "16:43" },
-            { type: "매일", time: "16:30", name: "클래식 바운티 220억 GTD", buyin: 220000000, regTime: "17:29" },
-            { type: "매일", time: "16:30", name: "워밍업 터보 24억 GTD", buyin: 12000000, regTime: "17:03" },
-            { type: "매일", time: "17:00", name: "클래식 400억 GTD", buyin: 220000000, regTime: "17:54" },
-            { type: "매일", time: "17:00", name: "프리롤 5천만 GTD", buyin: 0, regTime: "17:04" },
-            { type: "매일", time: "17:15", name: "워밍업 25억 GTD", buyin: 10000000, regTime: "18:14" },
-            { type: "매일", time: "17:30", name: "클래식 100억 GTD", buyin: 80000000, regTime: "18:29" },
-            { type: "매일", time: "17:30", name: "루키스 3억 GTD", buyin: 1200000, regTime: "17:50" },
-            { type: "매일", time: "18:00", name: "데일리 스페셜 450억 GTD", buyin: 330000000, regTime: "18:54" },
-            { type: "매일", time: "18:00", name: "비기너스 1억 GTD", buyin: 200000, regTime: "18:20" },
-            { type: "매일", time: "18:15", name: "스텝업 터보 9억 GTD", buyin: 6000000, regTime: "18:43" },
-            { type: "매일", time: "18:15", name: "클래식 70억 GTD", buyin: 35000000, regTime: "19:14" },
-            { type: "매일", time: "18:30", name: "클래식 165억 GTD", buyin: 110000000, regTime: "19:29" },
-            { type: "매일", time: "18:30", name: "워밍업 터보 24억 GTD", buyin: 12000000, regTime: "19:03" },
-            { type: "매일", time: "19:00", name: "데일리 스페셜 500억 GTD", buyin: 330000000, regTime: "19:54" },
-            { type: "매일", time: "19:00", name: "프리롤 1억 GTD", buyin: 0, regTime: "19:04" },
-            { type: "매일", time: "19:15", name: "클래식 70억 GTD", buyin: 60000000, regTime: "20:14" },
-            { type: "매일", time: "19:15", name: "워밍업 터보 24억 GTD", buyin: 12000000, regTime: "19:43" },
-            { type: "매일", time: "19:30", name: "클래식 165억 GTD", buyin: 110000000, regTime: "20:29" },
-            { type: "매일", time: "19:30", name: "클래식 50억 GTD", buyin: 35000000, regTime: "20:29" },
-            { type: "매일", time: "19:30", name: "루키스 터보 5억 GTD", buyin: 3000000, regTime: "19:46" },
-            { type: "매일", time: "20:00", name: "데일리 스페셜 550억 GTD", buyin: 370000000, regTime: "20:54" },
-            { type: "매일", time: "20:00", name: "비기너스 4억 GTD", buyin: 700000, regTime: "20:20" },
-            { type: "매일", time: "20:15", name: "클래식 프리즈아웃 90억 GTD", buyin: 80000000, regTime: "21:14" },
-            { type: "매일", time: "20:15", name: "스텝업 터보 14억 GTD", buyin: 7000000, regTime: "20:43" },
-            { type: "매일", time: "20:30", name: "클래식 270억 GTD", buyin: 180000000, regTime: "21:29" },
-            { type: "매일", time: "20:30", name: "클래식 70억 GTD", buyin: 45000000, regTime: "21:29" },
-            { type: "주말", time: "21:00", name: "위켄드 빌리언즈 미니 100억 GTD(주말)", buyin: 60000000, regTime: "21:54" },
-            { type: "평일", time: "21:00", name: "데일리 미니 메인 150억 GTD(평일)", buyin: 25000000, regTime: "21:54" },
-            { type: "평일", time: "21:00", name: "데일리 메인 1,600억 GTD(평일)", buyin: 400000000, regTime: "21:54" },
-            { type: "주말", time: "21:00", name: "위켄드 빌리언즈 3,200억 GTD(주말)", buyin: 800000000, regTime: "21:54" },
-            { type: "매일", time: "21:00", name: "프리롤 1억 GTD", buyin: 0, regTime: "21:04" },
-            { type: "평일", time: "21:15", name: "클래식 65억 GTD(평일)", buyin: 60000000, regTime: "22:14" },
-            { type: "주말", time: "21:15", name: "클래식 60억 GTD(주말)", buyin: 35000000, regTime: "22:14" },
-            { type: "매일", time: "21:30", name: "클래식 200억 GTD(매일)", buyin: 110000000, regTime: "22:29" },
-            { type: "매일", time: "21:30", name: "스텝업 터보 15억 GTD(매일)", buyin: 6000000, regTime: "21:58" },
-            { type: "매일", time: "22:00", name: "데일리 스페셜 하이롤러 800억 GTD", buyin: 550000000, regTime: "22:54" },
-            { type: "매일", time: "22:00", name: "비기너스 1억 GTD", buyin: 200000, regTime: "22:20" },
-            { type: "매일", time: "22:15", name: "클래식 200억 GTD", buyin: 110000000, regTime: "23:14" },
-            { type: "매일", time: "22:15", name: "스텝업 터보 18억 GTD", buyin: 10000000, regTime: "22:43" },
-            { type: "매일", time: "22:30", name: "클래식 90억 GTD", buyin: 55000000, regTime: "23:29" },
-            { type: "매일", time: "22:30", name: "데일리 스페셜 500억 GTD", buyin: 250000000, regTime: "23:29" },
-            { type: "매일", time: "23:00", name: "데일리 스페셜 슈퍼 하이롤러 1,200억 GTD", buyin: 1000000000, regTime: "23:59" },
-            { type: "매일", time: "23:00", name: "프리롤 1억 GTD", buyin: 0, regTime: "23:04" },
-            { type: "매일", time: "23:15", name: "클래식 200억 GTD", buyin: 110000000, regTime: "0:14" },
-            { type: "매일", time: "23:15", name: "스텝업 터보 18억 GTD", buyin: 10000000, regTime: "23:43" },
-            { type: "매일", time: "23:30", name: "클래식 70억 GTD", buyin: 45000000, regTime: "0:29" },
-            { type: "매일", time: "23:30", name: "데일리 스페셜 500억 GTD", buyin: 300000000, regTime: "0:29" }
+            { type: "매일", time: "0:00", name: "비기너스 4억 GTD", buyin: 700000 },
+            { type: "매일", time: "0:00", name: "클래식 400억 GTD", buyin: 270000000 },
+            { type: "매일", time: "0:15", name: "워밍업 40억 GTD", buyin: 35000000 },
+            { type: "매일", time: "0:30", name: "클래식 프리즈아웃 100억 GTD", buyin: 100000000 },
+            { type: "매일", time: "0:30", name: "워밍업 터보 20억 GTD", buyin: 10000000 },
+            { type: "매일", time: "1:00", name: "클래식 300억 GTD", buyin: 165000000 },
+            { type: "매일", time: "1:00", name: "프리롤 3천만 GTD", buyin: 0 },
+            { type: "매일", time: "1:15", name: "클래식 50억 GTD", buyin: 45000000 },
+            { type: "매일", time: "1:30", name: "루키스 터보 3억 GTD", buyin: 3000000 },
+            { type: "매일", time: "1:30", name: "클래식 200억 GTD", buyin: 180000000 },
+            { type: "매일", time: "2:00", name: "클래식 200억 GTD", buyin: 110000000 },
+            { type: "매일", time: "2:00", name: "비기너스 4천만 GTD", buyin: 100000 },
+            { type: "매일", time: "2:15", name: "스텝업 터보 10억 GTD", buyin: 7000000 },
+            { type: "매일", time: "2:30", name: "워밍업 35억 GTD", buyin: 35000000 },
+            { type: "매일", time: "3:00", name: "클래식 300억 GTD", buyin: 330000000 },
+            { type: "매일", time: "3:00", name: "프리롤 3천만 GTD", buyin: 0 },
+            { type: "매일", time: "3:15", name: "루키스 터보 4억 GTD", buyin: 4500000 },
+            { type: "매일", time: "3:30", name: "워밍업 35억 GTD", buyin: 35000000 },
+            { type: "매일", time: "4:00", name: "클래식 260억 GTD", buyin: 280000000 },
+            { type: "매일", time: "4:00", name: "비기너스 4천만 GTD", buyin: 100000 },
+            { type: "매일", time: "4:15", name: "스텝업 터보 7억 GTD", buyin: 6000000 },
+            { type: "매일", time: "4:30", name: "클래식 60억 GTD", buyin: 77000000 },
+            { type: "매일", time: "5:00", name: "워밍업 20억 GTD", buyin: 30000000 },
+            { type: "매일", time: "5:00", name: "프리롤 3천만 GTD", buyin: 0 },
+            { type: "매일", time: "5:15", name: "루키스 터보 3.5억 GTD", buyin: 3000000 },
+            { type: "매일", time: "5:30", name: "스텝업 바운티 터보 10억 GTD", buyin: 10000000 },
+            { type: "매일", time: "6:00", name: "워밍업 35억 GTD", buyin: 50000000 },
+            { type: "매일", time: "6:00", name: "비기너스 4천만 GTD", buyin: 100000 },
+            { type: "매일", time: "6:15", name: "루키스 터보 5억 GTD", buyin: 5000000 },
+            { type: "매일", time: "6:30", name: "스텝업 바운티 10억 GTD", buyin: 10000000 },
+            { type: "매일", time: "7:00", name: "클래식 35억 GTD", buyin: 50000000 },
+            { type: "매일", time: "7:00", name: "프리롤 3천만 GTD", buyin: 0 },
+            { type: "매일", time: "7:15", name: "루키스 2.7억 GTD", buyin: 1500000 },
+            { type: "매일", time: "7:30", name: "스텝업 터보 12억 GTD", buyin: 12000000 },
+            { type: "매일", time: "8:00", name: "클래식 200억 GTD", buyin: 190000000 },
+            { type: "매일", time: "8:00", name: "비기너스 4천만 GTD", buyin: 100000 },
+            { type: "매일", time: "8:15", name: "루키스 터보 7억 GTD", buyin: 5000000 },
+            { type: "매일", time: "8:30", name: "클래식 70억 GTD", buyin: 77000000 },
+            { type: "매일", time: "9:00", name: "클래식 140억 GTD", buyin: 110000000 },
+            { type: "매일", time: "9:00", name: "프리롤 3천만 GTD", buyin: 0 },
+            { type: "매일", time: "9:15", name: "루키스 2억 GTD", buyin: 1200000 },
+            { type: "매일", time: "9:30", name: "스텝업 터보 15억 GTD", buyin: 12000000 },
+            { type: "매일", time: "10:00", name: "클래식 200억 GTD", buyin: 165000000 },
+            { type: "매일", time: "10:00", name: "비기너스 4천만 GTD", buyin: 100000 },
+            { type: "매일", time: "10:15", name: "루키스 터보 5억 GTD", buyin: 5000000 },
+            { type: "매일", time: "10:30", name: "워밍업 터보 20억 GTD", buyin: 12000000 },
+            { type: "매일", time: "11:00", name: "클래식 170억 GTD", buyin: 110000000 },
+            { type: "매일", time: "11:00", name: "프리롤 3천만 GTD", buyin: 0 },
+            { type: "매일", time: "11:15", name: "스텝업 바운티 10억 GTD", buyin: 10000000 },
+            { type: "매일", time: "11:30", name: "루키스 터보 3억 GTD", buyin: 3000000 },
+            { type: "매일", time: "11:30", name: "워밍업 35억 GTD", buyin: 35000000 },
+            { type: "매일", time: "12:00", name: "클래식 370억 GTD", buyin: 220000000 },
+            { type: "매일", time: "12:00", name: "비기너스 1억 GTD", buyin: 200000 },
+            { type: "매일", time: "12:15", name: "워밍업 터보 17억 GTD", buyin: 12000000 },
+            { type: "매일", time: "12:30", name: "클래식 80억 GTD", buyin: 77000000 },
+            { type: "매일", time: "12:30", name: "루키스 터보 8억 GTD", buyin: 5000000 },
+            { type: "매일", time: "13:00", name: "클래식 250억 GTD", buyin: 250000000 },
+            { type: "매일", time: "13:00", name: "프리롤 3천만 GTD", buyin: 0 },
+            { type: "매일", time: "13:15", name: "워밍업 20억 GTD", buyin: 10000000 },
+            { type: "매일", time: "13:30", name: "클래식 80억 GTD", buyin: 60000000 },
+            { type: "매일", time: "13:30", name: "스텝업 터보 10억 GTD", buyin: 7000000 },
+            { type: "매일", time: "14:00", name: "클래식 370억 GTD", buyin: 370000000 },
+            { type: "매일", time: "14:00", name: "비기너스 4억 GTD", buyin: 700000 },
+            { type: "매일", time: "14:15", name: "클래식 90억 GTD", buyin: 80000000 },
+            { type: "매일", time: "14:15", name: "스텝업 터보 7억 GTD", buyin: 6000000 },
+            { type: "매일", time: "14:30", name: "클래식 바운티 160억 GTD", buyin: 160000000 },
+            { type: "매일", time: "14:30", name: "워밍업 터보 24억 GTD", buyin: 12000000 },
+            { type: "매일", time: "15:00", name: "클래식 400억 GTD", buyin: 220000000 },
+            { type: "매일", time: "15:00", name: "프리롤 3천만 GTD", buyin: 0 },
+            { type: "매일", time: "15:15", name: "스텝업 바운티 16억 GTD", buyin: 10000000 },
+            { type: "매일", time: "15:30", name: "클래식 프리즈아웃 60억 GTD", buyin: 60000000 },
+            { type: "매일", time: "15:30", name: "루키스 터보 5억 GTD", buyin: 3000000 },
+            { type: "매일", time: "16:00", name: "클래식 330억 GTD", buyin: 330000000 },
+            { type: "매일", time: "16:00", name: "비기너스 1억 GTD", buyin: 200000 },
+            { type: "매일", time: "16:15", name: "클래식 90억 GTD", buyin: 80000000 },
+            { type: "매일", time: "16:15", name: "스텝업 터보 9억 GTD", buyin: 6000000 },
+            { type: "매일", time: "16:30", name: "클래식 바운티 220억 GTD", buyin: 220000000 },
+            { type: "매일", time: "16:30", name: "워밍업 터보 24억 GTD", buyin: 12000000 },
+            { type: "매일", time: "17:00", name: "클래식 400억 GTD", buyin: 220000000 },
+            { type: "매일", time: "17:00", name: "프리롤 5천만 GTD", buyin: 0 },
+            { type: "매일", time: "17:15", name: "워밍업 25억 GTD", buyin: 10000000 },
+            { type: "매일", time: "17:30", name: "클래식 100억 GTD", buyin: 80000000 },
+            { type: "매일", time: "17:30", name: "루키스 3억 GTD", buyin: 1200000 },
+            { type: "매일", time: "18:00", name: "데일리 스페셜 450억 GTD", buyin: 330000000 },
+            { type: "매일", time: "18:00", name: "비기너스 1억 GTD", buyin: 200000 },
+            { type: "매일", time: "18:15", name: "스텝업 터보 9억 GTD", buyin: 6000000 },
+            { type: "매일", time: "18:15", name: "클래식 70억 GTD", buyin: 35000000 },
+            { type: "매일", time: "18:30", name: "클래식 165억 GTD", buyin: 110000000 },
+            { type: "매일", time: "18:30", name: "워밍업 터보 24억 GTD", buyin: 12000000 },
+            { type: "매일", time: "19:00", name: "데일리 스페셜 500억 GTD", buyin: 330000000 },
+            { type: "매일", time: "19:00", name: "프리롤 1억 GTD", buyin: 0 },
+            { type: "매일", time: "19:15", name: "클래식 70억 GTD", buyin: 60000000 },
+            { type: "매일", time: "19:15", name: "워밍업 터보 24억 GTD", buyin: 12000000 },
+            { type: "매일", time: "19:30", name: "클래식 165억 GTD", buyin: 110000000 },
+            { type: "매일", time: "19:30", name: "클래식 50억 GTD", buyin: 35000000 },
+            { type: "매일", time: "19:30", name: "루키스 터보 5억 GTD", buyin: 3000000 },
+            { type: "매일", time: "20:00", name: "데일리 스페셜 550억 GTD", buyin: 370000000 },
+            { type: "매일", time: "20:00", name: "비기너스 4억 GTD", buyin: 700000 },
+            { type: "매일", time: "20:15", name: "클래식 프리즈아웃 90억 GTD", buyin: 80000000 },
+            { type: "매일", time: "20:15", name: "스텝업 터보 14억 GTD", buyin: 7000000 },
+            { type: "매일", time: "20:30", name: "클래식 270억 GTD", buyin: 180000000 },
+            { type: "매일", time: "20:30", name: "클래식 70억 GTD", buyin: 45000000 },
+            { type: "주말", time: "21:00", name: "위켄드 빌리언즈 미니 100억 GTD(주말)", buyin: 60000000 },
+            { type: "평일", time: "21:00", name: "데일리 미니 메인 150억 GTD(평일)", buyin: 25000000 },
+            { type: "평일", time: "21:00", name: "데일리 메인 1,600억 GTD(평일)", buyin: 400000000 },
+            { type: "주말", time: "21:00", name: "위켄드 빌리언즈 3,200억 GTD(주말)", buyin: 800000000 },
+            { type: "매일", time: "21:00", name: "프리롤 1억 GTD", buyin: 0 },
+            { type: "평일", time: "21:15", name: "클래식 65억 GTD(평일)", buyin: 60000000 },
+            { type: "주말", time: "21:15", name: "클래식 60억 GTD(주말)", buyin: 35000000 },
+            { type: "매일", time: "21:30", name: "클래식 200억 GTD(매일)", buyin: 110000000 },
+            { type: "매일", time: "21:30", name: "스텝업 터보 15억 GTD(매일)", buyin: 6000000 },
+            { type: "매일", time: "22:00", name: "데일리 스페셜 하이롤러 800억 GTD", buyin: 550000000 },
+            { type: "매일", time: "22:00", name: "비기너스 1억 GTD", buyin: 200000 },
+            { type: "매일", time: "22:15", name: "클래식 200억 GTD", buyin: 110000000 },
+            { type: "매일", time: "22:15", name: "스텝업 터보 18억 GTD", buyin: 10000000 },
+            { type: "매일", time: "22:30", name: "클래식 90억 GTD", buyin: 55000000 },
+            { type: "매일", time: "22:30", name: "데일리 스페셜 500억 GTD", buyin: 250000000 },
+            { type: "매일", time: "23:00", name: "데일리 스페셜 슈퍼 하이롤러 1,200억 GTD", buyin: 1000000000 },
+            { type: "매일", time: "23:00", name: "프리롤 1억 GTD", buyin: 0 },
+            { type: "매일", time: "23:15", name: "클래식 200억 GTD", buyin: 110000000 },
+            { type: "매일", time: "23:15", name: "스텝업 터보 18억 GTD", buyin: 10000000 },
+            { type: "매일", time: "23:30", name: "클래식 70억 GTD", buyin: 45000000 },
+            { type: "매일", time: "23:30", name: "데일리 스페셜 500억 GTD", buyin: 300000000 }
         ];
 
         let filteredSchedule = []; // 필터링된 배열
         let alarmEnabled = false;
         let lastAlarmedTime = "";
+        let activeTargetBB = 12; // 현재 적용된 목표 BB
 
         // 시간 문자열 포맷팅
         function formatTimeStr(timeStr) {
@@ -219,16 +310,67 @@
             return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
         }
 
-        // 로컬 스토리지에 필터값 저장하기
+        // 특정 토너먼트의 목표 BB 도달 시간을 계산하는 핵심 함수!
+        function calculateRegTime(startTimeStr, tourneyName, targetBB) {
+            let spec = tourneySpecs[tourneyName];
+            if (!spec) return startTimeStr; // 스펙 정보 없으면 시작시간 그대로 리턴
+
+            // 1. 몇 번째 레벨에서 목표 BB 미만으로 떨어지는지 계산 (타겟 레벨 도달)
+            let targetLevel = 1;
+            for (let i = 1; i < blinds.length; i++) {
+                let bb = spec.startChip / blinds[i];
+                if (bb < targetBB) {
+                    targetLevel = i - 1; // 목표 BB 밑으로 떨어지기 직전 마지막 레벨
+                    break;
+                }
+            }
+            if (targetLevel < 1) targetLevel = 1;
+
+            // 2. 해당 레벨까지 도달하는 데 걸리는 '순수 게임 시간' 계산
+            let gameMinutes = (targetLevel - 1) * spec.blindUp;
+
+            // 3. 브레이크 타임(매시 55분~00분)을 고려하여 실제 흐른 시간 시뮬레이션
+            let [hour, minute] = startTimeStr.split(':').map(Number);
+            let currentRealMins = hour * 60 + minute;
+            let left = gameMinutes;
+
+            while (left > 0) {
+                let m = currentRealMins % 60;
+                if (m >= 55) {
+                    // 매시 55분부터 정각까지는 브레이크! 
+                    // 레지 마감 시간은 흐르지만, 게임 내부 블라인드업 시간은 흐르지 않음.
+                    currentRealMins++;
+                } else {
+                    currentRealMins++;
+                    left--;
+                }
+            }
+
+            // 4. 레지 마감 시간은 브레이크 영향을 받지 않음 (시작 시간 + maxReg)
+            let maxRegRealMins = (hour * 60 + minute) + spec.maxReg;
+
+            // 5. 알람 시간은 [계산된 목표 BB 도달 시간]과 [레지 마감 시간] 중 빠른 쪽
+            let finalRealMins = Math.min(currentRealMins, maxRegRealMins);
+
+            let fHour = Math.floor(finalRealMins / 60) % 24;
+            let fMin = finalRealMins % 60;
+            return `${String(fHour).padStart(2, '0')}:${String(fMin).padStart(2, '0')}`;
+        }
+
+        // 로컬스토리지에 사용자가 입력한 필터값 저장
         function saveFilters() {
+            localStorage.setItem('alarmTargetBB', document.getElementById('target-bb').value);
             localStorage.setItem('alarmMinVal', document.getElementById('min-val').value);
             localStorage.setItem('alarmMinUnit', document.getElementById('min-unit').value);
             localStorage.setItem('alarmMaxVal', document.getElementById('max-val').value);
             localStorage.setItem('alarmMaxUnit', document.getElementById('max-unit').value);
         }
 
-        // 로컬 스토리지에서 필터값 불러오기
+        // 로컬스토리지에서 기존 설정 불러오기
         function loadFilters() {
+            if (localStorage.getItem('alarmTargetBB') !== null) {
+                document.getElementById('target-bb').value = localStorage.getItem('alarmTargetBB');
+            }
             if (localStorage.getItem('alarmMinVal') !== null) {
                 document.getElementById('min-val').value = localStorage.getItem('alarmMinVal');
             }
@@ -236,14 +378,12 @@
                 document.getElementById('min-unit').value = localStorage.getItem('alarmMinUnit');
             }
             
-            // 최대 단위 옵션을 불러온 최소 단위에 맞게 갱신
             updateMaxUnitOptions();
 
             if (localStorage.getItem('alarmMaxVal') !== null) {
                 document.getElementById('max-val').value = localStorage.getItem('alarmMaxVal');
             }
             if (localStorage.getItem('alarmMaxUnit') !== null) {
-                // 불러온 최대 단위가 현재 존재하는 옵션에 있는지 확인 후 세팅
                 const maxUnitEl = document.getElementById('max-unit');
                 const savedMaxUnit = localStorage.getItem('alarmMaxUnit');
                 if (maxUnitEl.querySelector(`option[value="${savedMaxUnit}"]`)) {
@@ -252,31 +392,25 @@
             }
         }
 
-        // ------------------ 추가된 기능: 최소 단위에 따른 최대 단위 동적 변경 ------------------
+        // 동적으로 최대단위 셀렉트 옵션 바꿔주는 기능
         function updateMaxUnitOptions() {
             const minUnitVal = document.getElementById('min-unit').value;
             const maxUnitEl = document.getElementById('max-unit');
             const currentMaxVal = maxUnitEl.value;
 
-            // 기존 옵션 지우기
             maxUnitEl.innerHTML = '';
 
-            // 최소 단위에 따라 추가할 옵션 결정
             if (minUnitVal === '1') {
-                // '선택 안함' -> 모두 표시
                 maxUnitEl.innerHTML += '<option value="1">선택 안함</option>';
                 maxUnitEl.innerHTML += '<option value="10000">만</option>';
                 maxUnitEl.innerHTML += '<option value="100000000">억</option>';
             } else if (minUnitVal === '10000') {
-                // '만' -> '만', '억' 표시
                 maxUnitEl.innerHTML += '<option value="10000">만</option>';
                 maxUnitEl.innerHTML += '<option value="100000000">억</option>';
             } else if (minUnitVal === '100000000') {
-                // '억' -> '억'만 표시
                 maxUnitEl.innerHTML += '<option value="100000000">억</option>';
             }
 
-            // 기존에 선택되어 있던 값이 새로 그려진 옵션에 있으면 유지, 없으면 첫 번째 옵션으로 초기화 (예: '억' 강제 고정)
             if (maxUnitEl.querySelector(`option[value="${currentMaxVal}"]`)) {
                 maxUnitEl.value = currentMaxVal;
             } else {
@@ -284,16 +418,17 @@
             }
         }
 
-        // 최소 단위 셀렉트박스가 바뀔 때마다 이벤트 실행
         document.getElementById('min-unit').addEventListener('change', updateMaxUnitOptions);
-        // ---------------------------------------------------------------------------------
 
-        // 바이인 기반 필터링 적용 함수
         function applyFilter() {
             const today = new Date().getDay();
             const isWeekend = (today === 0 || today === 6);
 
-            // 입력값 계산
+            // 목표 BB 필터값 갱신
+            let targetBBInput = parseFloat(document.getElementById('target-bb').value);
+            activeTargetBB = isNaN(targetBBInput) || targetBBInput <= 0 ? 12 : targetBBInput;
+            document.getElementById('th-target-bb').innerText = activeTargetBB; // 표 헤더 변경
+
             let minInput = parseFloat(document.getElementById('min-val').value);
             let minUnit = parseFloat(document.getElementById('min-unit').value);
             let minBuyin = isNaN(minInput) ? 0 : minInput * minUnit;
@@ -303,20 +438,20 @@
             let maxBuyin = isNaN(maxInput) ? Infinity : maxInput * maxUnit;
 
             filteredSchedule = rawSchedule.filter(item => {
-                // 요일 필터 (평일/주말)
                 if (item.type === "평일" && isWeekend) return false;
                 if (item.type === "주말" && !isWeekend) return false;
-
-                // 바이인 필터
                 if (item.buyin < minBuyin || item.buyin > maxBuyin) return false;
-
                 return true;
-            }).map(item => ({
-                ...item,
-                formattedRegTime: formatTimeStr(item.regTime)
-            })).sort((a, b) => a.formattedRegTime.localeCompare(b.formattedRegTime));
+            }).map(item => {
+                // 여기서 매번 목표 BB에 맞춰 레지 시간을 새롭게 동적 계산합니다!
+                let dynamicRegTime = calculateRegTime(item.time, item.name, activeTargetBB);
+                return {
+                    ...item,
+                    regTime: dynamicRegTime,
+                    formattedRegTime: formatTimeStr(dynamicRegTime)
+                };
+            }).sort((a, b) => a.formattedRegTime.localeCompare(b.formattedRegTime));
 
-            // 테이블 다시 그리기
             const now = new Date();
             const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             renderTable(currentTimeStr);
@@ -324,7 +459,6 @@
 
         const tbody = document.getElementById('schedule-body');
 
-        // 테이블 렌더링
         function renderTable(currentTimeStr) {
             tbody.innerHTML = '';
             
@@ -350,20 +484,19 @@
             });
         }
 
-        // 소리 알람 및 음성 합성
         function playAlarm(tournamentName) {
             if (!alarmEnabled) return;
             
             document.body.classList.add('flashing');
             setTimeout(() => document.body.classList.remove('flashing'), 5000);
 
-            const utterance = new SpeechSynthesisUtterance(`${tournamentName}, 12비비 레지 시간입니다.`);
+            // 음성 안내에서도 12BB 대신 설정된 목표 BB로 말하도록 수정
+            const utterance = new SpeechSynthesisUtterance(`${tournamentName}, ${activeTargetBB}비비 레지 시간입니다.`);
             utterance.lang = 'ko-KR';
             utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);
         }
 
-        // 매초 업데이트 (알람 체크)
         function updateClock() {
             const now = new Date();
             const h = String(now.getHours()).padStart(2, '0');
@@ -375,7 +508,6 @@
 
             let nextAlarmFound = false;
             
-            // 필터링된 배열을 기준으로 알람 확인
             filteredSchedule.forEach((item, index) => {
                 const row = document.getElementById(`row-${index}`);
                 if (!row) return;
@@ -389,7 +521,7 @@
                 } else if (item.formattedRegTime > currentTimeStr) {
                     row.classList.remove('highlight');
                     if (!nextAlarmFound) {
-                        document.getElementById('next-alarm').textContent = `다음 12BB 레지: [${item.regTime}] ${item.name}`;
+                        document.getElementById('next-alarm').textContent = `다음 ${activeTargetBB}BB 레지: [${item.regTime}] ${item.name}`;
                         nextAlarmFound = true;
                     }
                 }
@@ -400,7 +532,6 @@
             }
         }
 
-        // 알람 켜기/끄기 토글 이벤트
         document.getElementById('toggle-btn').addEventListener('click', function() {
             alarmEnabled = !alarmEnabled;
             
@@ -419,16 +550,14 @@
             }
         });
 
-        // 필터 적용 버튼 이벤트
         document.getElementById('apply-btn').addEventListener('click', function() {
-            saveFilters(); // 적용할 때마다 로컬 스토리지에 저장
+            saveFilters(); 
             applyFilter();
             updateClock();
         });
 
-        // 페이지 초기 로딩 시 동작
-        loadFilters(); // 저장된 필터 불러오기 (이 안에서 updateMaxUnitOptions도 실행됨)
-        applyFilter(); // 불러온 필터 적용
+        loadFilters(); 
+        applyFilter(); 
         setInterval(updateClock, 1000);
         updateClock();
     </script>
