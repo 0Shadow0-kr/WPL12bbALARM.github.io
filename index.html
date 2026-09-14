@@ -48,6 +48,7 @@
 
     <!-- 필터 섹션 -->
     <div id="filter-section">
+        <!-- 첫 번째 줄: 최소/최대 바이인 -->
         <div class="filter-row">
             <div class="filter-group">
                 <label>최소 바이인</label>
@@ -67,15 +68,16 @@
                     <option value="100000000">억</option>
                 </select>
             </div>
-            <button id="apply-btn">필터 적용</button>
         </div>
         
+        <!-- 두 번째 줄: 목표 스택 + 버튼 -->
         <div class="filter-row">
-            <div class="filter-group">
+            <div class="filter-group" title="비워두면 Max Late Reg 시간으로 계산됩니다">
                 <label>목표 스택</label>
-                <input type="number" id="target-bb" placeholder="12" value="12">
+                <input type="number" id="target-bb" placeholder="Max" value="12">
                 <span style="color: #fff; font-weight: bold; margin-left: -5px;">BB</span>
             </div>
+            <button id="apply-btn">필터 적용</button>
         </div>
     </div>
 
@@ -84,7 +86,7 @@
             <tr>
                 <th>시작 시간</th>
                 <th>토너먼트명</th>
-                <th><span id="th-target-bb">12</span>BB Reg. Time</th>
+                <th id="th-reg-time">12BB Reg. Time</th>
             </tr>
         </thead>
         <tbody id="schedule-body">
@@ -93,7 +95,7 @@
     </table>
 
     <script>
-        // 새로 추가된 데이터 1: 블라인드 레벨별 정보
+        // 데이터 1: 블라인드 레벨별 정보
         const blinds = [
             0, // index 0 (더미)
             50, 100, 150, 200, 250, 300, 400, 500, 600, 800,
@@ -104,7 +106,7 @@
             1600000, 2000000, 2400000, 2800000, 3200000, 3600000, 4000000, 5000000, 6000000, 8000000
         ];
 
-        // 새로 추가된 데이터 2: 토너먼트 상세 스펙 (레지 마감시간, 블라인드업 시간, 스타팅 칩)
+        // 데이터 2: 토너먼트 상세 스펙
         const tourneySpecs = {
             "데일리 메인 1,600억 GTD(평일)": { maxReg: 89, blindUp: 6, startChip: 10000 },
             "데일리 미니 메인 150억 GTD(평일)": { maxReg: 77, blindUp: 6, startChip: 10000 },
@@ -303,45 +305,49 @@
             { type: "매일", time: "23:30", name: "데일리 스페셜 500억 GTD", buyin: 300000000 }
         ];
 
-        let filteredSchedule = []; // 필터링된 배열
+        let filteredSchedule = []; 
         let alarmEnabled = false;
         let lastAlarmedTime = "";
-        let activeTargetBB = 12; // 현재 적용된 목표 BB
+        let activeTargetBB = 12; // 빈 값이면 null (Max Late Reg)로 처리됩니다
 
-        // 시간 문자열 포맷팅
         function formatTimeStr(timeStr) {
             let [h, m] = timeStr.split(':');
             return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
         }
 
-        // 특정 토너먼트의 목표 BB 도달 시간을 계산하는 핵심 함수!
+        // 특정 토너먼트의 레지 마감 또는 목표 BB 도달 시간을 계산
         function calculateRegTime(startTimeStr, tourneyName, targetBB) {
             let spec = tourneySpecs[tourneyName];
-            if (!spec) return startTimeStr; // 스펙 정보 없으면 시작시간 그대로 리턴
+            if (!spec) return startTimeStr;
 
-            // 1. 몇 번째 레벨에서 목표 BB와 같거나 작아지는지 계산 (타겟 레벨 도달)
+            let [hour, minute] = startTimeStr.split(':').map(Number);
+            let startMins = hour * 60 + minute;
+
+            // targetBB가 null(비어있음)이면 무조건 맥스 레잇 레지 시간 반환
+            if (targetBB === null) {
+                let maxRegRealMins = startMins + spec.maxReg;
+                let fHour = Math.floor(maxRegRealMins / 60) % 24;
+                let fMin = maxRegRealMins % 60;
+                return `${String(fHour).padStart(2, '0')}:${String(fMin).padStart(2, '0')}`;
+            }
+
             let targetLevel = 1;
             for (let i = 1; i < blinds.length; i++) {
                 let bb = spec.startChip / blinds[i];
                 if (bb < targetBB) {
-                    targetLevel = i - 1; // 목표 BB 밑으로 떨어지기 직전 레벨
+                    targetLevel = i - 1; 
                     break;
                 }
             }
             if (targetLevel < 1) targetLevel = 1;
 
-            // 2. 해당 레벨까지 도달하는 데 걸리는 '게임 내 시간' 계산
             let gameMinutes = (targetLevel - 1) * spec.blindUp;
-
-            // 3. 브레이크 타임(매시 55분~00분)을 고려한 실제 소요 시간(시뮬레이션) 계산
-            let [hour, minute] = startTimeStr.split(':').map(Number);
-            let currentRealMins = hour * 60 + minute;
+            let currentRealMins = startMins;
             let left = gameMinutes;
 
             while (left > 0) {
                 let m = currentRealMins % 60;
                 if (m >= 55) {
-                    // 매시 55분부터 60분까지는 브레이크! 게임시간은 줄어들지 않고 실제시간만 흐름
                     currentRealMins++;
                 } else {
                     currentRealMins++;
@@ -349,10 +355,7 @@
                 }
             }
 
-            // 4. 레지 마감 시간은 브레이크 영향을 받지 않음 (시작 시간 + maxReg)
-            let maxRegRealMins = (hour * 60 + minute) + spec.maxReg;
-
-            // 5. 알람 시간은 [계산된 목표 BB 도달 시간]과 [레지 마감 시간] 중 빠른 쪽
+            let maxRegRealMins = startMins + spec.maxReg;
             let finalRealMins = Math.min(currentRealMins, maxRegRealMins);
 
             let fHour = Math.floor(finalRealMins / 60) % 24;
@@ -424,10 +427,22 @@
             const today = new Date().getDay();
             const isWeekend = (today === 0 || today === 6);
 
-            // 목표 BB 갱신
-            let targetBBInput = parseFloat(document.getElementById('target-bb').value);
-            activeTargetBB = isNaN(targetBBInput) || targetBBInput <= 0 ? 12 : targetBBInput;
-            document.getElementById('th-target-bb').innerText = activeTargetBB; // 표 헤더 변경
+            // 입력 칸이 비어있거나 올바른 숫자가 아니면 null로 처리 (Max Late Reg)
+            let targetBBRaw = document.getElementById('target-bb').value.trim();
+            if (targetBBRaw === '') {
+                activeTargetBB = null;
+            } else {
+                let parsed = parseFloat(targetBBRaw);
+                activeTargetBB = (isNaN(parsed) || parsed <= 0) ? null : parsed;
+            }
+
+            // 표 헤더 텍스트 변경
+            const thRegTime = document.getElementById('th-reg-time');
+            if (activeTargetBB === null) {
+                thRegTime.innerText = "Max Late Reg. Time";
+            } else {
+                thRegTime.innerText = activeTargetBB + "BB Reg. Time";
+            }
 
             let minInput = parseFloat(document.getElementById('min-val').value);
             let minUnit = parseFloat(document.getElementById('min-unit').value);
@@ -443,7 +458,6 @@
                 if (item.buyin < minBuyin || item.buyin > maxBuyin) return false;
                 return true;
             }).map(item => {
-                // 여기서 매번 목표 BB에 맞춰 레지 시간을 새롭게 동적 계산합니다!
                 let dynamicRegTime = calculateRegTime(item.time, item.name, activeTargetBB);
                 return {
                     ...item,
@@ -490,8 +504,9 @@
             document.body.classList.add('flashing');
             setTimeout(() => document.body.classList.remove('flashing'), 5000);
 
-            // 음성 안내에서도 12BB 대신 설정된 목표 BB로 말하도록 수정
-            const utterance = new SpeechSynthesisUtterance(`${tournamentName}, ${activeTargetBB}비비 레지 시간입니다.`);
+            // 알람 텍스트를 목표 스택에 맞춰 조정
+            let bbText = activeTargetBB === null ? "맥스 레잇" : `${activeTargetBB}비비`;
+            const utterance = new SpeechSynthesisUtterance(`${tournamentName}, ${bbText} 레지 시간입니다.`);
             utterance.lang = 'ko-KR';
             utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);
@@ -521,7 +536,8 @@
                 } else if (item.formattedRegTime > currentTimeStr) {
                     row.classList.remove('highlight');
                     if (!nextAlarmFound) {
-                        document.getElementById('next-alarm').textContent = `다음 ${activeTargetBB}BB 레지: [${item.regTime}] ${item.name}`;
+                        let bbLabel = activeTargetBB === null ? "Max Late" : `${activeTargetBB}BB`;
+                        document.getElementById('next-alarm').textContent = `다음 ${bbLabel} 레지: [${item.regTime}] ${item.name}`;
                         nextAlarmFound = true;
                     }
                 }
