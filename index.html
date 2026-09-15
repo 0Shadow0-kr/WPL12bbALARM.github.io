@@ -29,7 +29,6 @@
         th, td { border: 1px solid #444; padding: 10px; text-align: center; }
         th { background-color: #333; color: #f5a623; }
         .highlight { background-color: #ff9800 !important; color: #000; font-weight: bold; }
-        /* past 클래스 삭제됨 (대신 숨김 처리) */
         
         @keyframes flash {
             0%, 100% { background-color: #121212; }
@@ -80,8 +79,13 @@
             </div>
             
             <div class="filter-group" style="margin-left: 10px;">
-                <input type="checkbox" id="exclude-tb">
-                <label for="exclude-tb" style="cursor: pointer; font-weight: normal; color: #fff;">터보/바운티 제외</label>
+                <input type="checkbox" id="exclude-turbo">
+                <label for="exclude-turbo" style="cursor: pointer; font-weight: normal; color: #fff;">터보 제외</label>
+            </div>
+            
+            <div class="filter-group" style="margin-left: 5px;">
+                <input type="checkbox" id="exclude-bounty">
+                <label for="exclude-bounty" style="cursor: pointer; font-weight: normal; color: #fff;">바운티 제외</label>
             </div>
 
             <button id="apply-btn" style="margin-left: 20px;">필터 적용</button>
@@ -374,7 +378,8 @@
             localStorage.setItem('alarmMinUnit', document.getElementById('min-unit').value);
             localStorage.setItem('alarmMaxVal', document.getElementById('max-val').value);
             localStorage.setItem('alarmMaxUnit', document.getElementById('max-unit').value);
-            localStorage.setItem('alarmExcludeTB', document.getElementById('exclude-tb').checked);
+            localStorage.setItem('alarmExcludeTurbo', document.getElementById('exclude-turbo').checked);
+            localStorage.setItem('alarmExcludeBounty', document.getElementById('exclude-bounty').checked);
         }
 
         function loadFilters() {
@@ -400,8 +405,11 @@
                     maxUnitEl.value = savedMaxUnit;
                 }
             }
-            if (localStorage.getItem('alarmExcludeTB') !== null) {
-                document.getElementById('exclude-tb').checked = localStorage.getItem('alarmExcludeTB') === 'true';
+            if (localStorage.getItem('alarmExcludeTurbo') !== null) {
+                document.getElementById('exclude-turbo').checked = localStorage.getItem('alarmExcludeTurbo') === 'true';
+            }
+            if (localStorage.getItem('alarmExcludeBounty') !== null) {
+                document.getElementById('exclude-bounty').checked = localStorage.getItem('alarmExcludeBounty') === 'true';
             }
         }
 
@@ -459,15 +467,17 @@
             let maxUnit = parseFloat(document.getElementById('max-unit').value);
             let maxBuyin = isNaN(maxInput) ? Infinity : maxInput * maxUnit;
             
-            let excludeTB = document.getElementById('exclude-tb').checked;
+            let excludeTurbo = document.getElementById('exclude-turbo').checked;
+            let excludeBounty = document.getElementById('exclude-bounty').checked;
 
             filteredSchedule = rawSchedule.filter(item => {
                 if (item.type === "평일" && isWeekend) return false;
                 if (item.type === "주말" && !isWeekend) return false;
                 if (item.buyin < minBuyin || item.buyin > maxBuyin) return false;
                 
-                // 터보, 바운티 제외 기능 로직
-                if (excludeTB && (item.name.includes("터보") || item.name.includes("바운티"))) return false;
+                // 터보, 바운티 따로 제외 로직
+                if (excludeTurbo && item.name.includes("터보")) return false;
+                if (excludeBounty && item.name.includes("바운티")) return false;
 
                 return true;
             }).map(item => {
