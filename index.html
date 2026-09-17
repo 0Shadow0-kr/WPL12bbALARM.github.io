@@ -103,6 +103,7 @@
                 <th>시작 시간</th>
                 <th>토너먼트명</th>
                 <th id="th-reg-time">12BB Reg. Time</th>
+                <th>Max Late Reg.</th> <!-- 추가된 열 -->
             </tr>
         </thead>
         <tbody id="schedule-body">
@@ -509,7 +510,8 @@
             tbody.innerHTML = '';
             
             if (filteredSchedule.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="color:#888; padding: 20px;">조건에 맞는 토너먼트가 없습니다.</td></tr>`;
+                // colspan을 3에서 4로 수정
+                tbody.innerHTML = `<tr><td colspan="4" style="color:#888; padding: 20px;">조건에 맞는 토너먼트가 없습니다.</td></tr>`;
                 return;
             }
 
@@ -526,10 +528,12 @@
                     tr.className = 'expired-reg';
                 }
 
+                // <td> 태그에 item.formattedMaxRegTime 열 추가
                 tr.innerHTML = `
                     <td>${item.time}</td>
                     <td>${item.name}</td>
                     <td>${item.regTime}</td>
+                    <td>${item.formattedMaxRegTime}</td>
                 `;
                 tbody.appendChild(tr);
             });
