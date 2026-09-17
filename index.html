@@ -482,10 +482,14 @@
                 return true;
             }).map(item => {
                 let dynamicRegTime = calculateRegTime(item.time, item.name, activeTargetBB);
+                // 추가: 맥스 레잇 시간 계산 (targetBB에 null 전달)
+                let maxRegTime = calculateRegTime(item.time, item.name, null); 
+                
                 return {
                     ...item,
                     regTime: dynamicRegTime,
-                    formattedRegTime: formatTimeStr(dynamicRegTime)
+                    formattedRegTime: formatTimeStr(dynamicRegTime),
+                    formattedMaxRegTime: formatTimeStr(maxRegTime) // 맥레레 시간 저장
                 };
             }).sort((a, b) => a.formattedRegTime.localeCompare(b.formattedRegTime));
 
@@ -508,8 +512,8 @@
                 const tr = document.createElement('tr');
                 tr.id = `row-${index}`;
                 
-                // 지나간 일정은 렌더링 시점부터 숨김 처리
-                if (item.formattedRegTime < currentTimeStr) {
+                // 수정: 지나간 일정은 맥레레 시간 기준으로 숨김 처리
+                if (item.formattedMaxRegTime < currentTimeStr) {
                     tr.style.display = 'none';
                 }
 
@@ -550,24 +554,33 @@
                 const row = document.getElementById(`row-${index}`);
                 if (!row) return;
 
-                if (item.formattedRegTime < currentTimeStr) {
-                    // 레지 시간이 지나면 화면에서 지워짐(숨김)
+                // 수정: 숨김 기준을 맥레레 시간으로 변경
+                if (item.formattedMaxRegTime < currentTimeStr) {
+                    // 맥레레 시간이 지나면 화면에서 지워짐(숨김)
                     row.style.display = 'none';
                     row.classList.remove('highlight');
-                } else if (item.formattedRegTime === currentTimeStr) {
-                    row.style.display = '';
-                    row.className = 'highlight';
-                    if (lastAlarmedTime !== currentTimeStr) {
-                        playAlarm(item.name);
-                        lastAlarmedTime = currentTimeStr;
-                    }
                 } else {
-                    row.style.display = '';
-                    row.classList.remove('highlight');
-                    if (!nextAlarmFound) {
-                        let bbLabel = activeTargetBB === null ? "Max Late" : `${activeTargetBB}BB`;
-                        document.getElementById('next-alarm').textContent = `다음 ${bbLabel} 레지: [${item.regTime}] ${item.name}`;
-                        nextAlarmFound = true;
+                    // 아직 맥레레가 지나지 않아서 화면에 표시됨
+                    row.style.display = ''; 
+                    
+                    if (item.formattedRegTime === currentTimeStr) {
+                        // 목표 레지 시간 정각 (하이라이트 및 알람)
+                        row.className = 'highlight';
+                        if (lastAlarmedTime !== currentTimeStr) {
+                            playAlarm(item.name);
+                            lastAlarmedTime = currentTimeStr;
+                        }
+                    } else if (item.formattedRegTime < currentTimeStr) {
+                        // 목표 레지 시간은 지났지만 맥레레는 안 지난 경우 (일반 텍스트로 유지)
+                        row.classList.remove('highlight');
+                    } else {
+                        // 목표 레지 시간이 아직 안 온 경우
+                        row.classList.remove('highlight');
+                        if (!nextAlarmFound) {
+                            let bbLabel = activeTargetBB === null ? "Max Late" : `${activeTargetBB}BB`;
+                            document.getElementById('next-alarm').textContent = `다음 ${bbLabel} 레지: [${item.regTime}] ${item.name}`;
+                            nextAlarmFound = true;
+                        }
                     }
                 }
             });
