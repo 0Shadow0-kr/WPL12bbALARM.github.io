@@ -32,8 +32,8 @@
         /* 알람 울릴 때의 주황색 하이라이트 */
         .highlight { background-color: #ff9800 !important; color: #000; font-weight: bold; }
         
-        /* 맥레레가 지난 토너먼트의 노란색 표시 */
-        .expired-reg { background-color: #ffd54f !important; color: #000; font-weight: bold; }
+        /* 목표 시간은 지났으나 맥레레가 지나지 않은 토너먼트 (노란색 표시) */
+        .expired-reg { background-color: #f5d04c !important; color: #000; font-weight: bold; }
         
         @keyframes flash {
             0%, 100% { background-color: #121212; }
@@ -517,8 +517,12 @@
                 const tr = document.createElement('tr');
                 tr.id = `row-${index}`;
                 
-                // 수정: 지나간 일정은 노란색 클래스를 부여해서 계속 보여줌
+                // 조건별 스타일링 및 숨김 처리 로직
                 if (item.formattedMaxRegTime < currentTimeStr) {
+                    // 1. 맥레레가 지난 토너: 아예 숨김(삭제) 처리
+                    tr.style.display = 'none';
+                } else if (item.formattedRegTime < currentTimeStr) {
+                    // 2. 맥레레는 안 지났지만 유저 목표 시간이 지난 토너: 노란색
                     tr.className = 'expired-reg';
                 }
 
@@ -559,10 +563,10 @@
                 const row = document.getElementById(`row-${index}`);
                 if (!row) return;
 
-                // 수정: 숨김 처리 대신 'expired-reg' 클래스 부여
                 if (item.formattedMaxRegTime < currentTimeStr) {
-                    row.style.display = ''; // 숨김 방지
-                    row.className = 'expired-reg'; // 노란색으로 표시
+                    // 1. 맥레레 지남: 화면에서 완전히 숨김
+                    row.style.display = 'none';
+                    row.className = ''; 
                 } else {
                     row.style.display = ''; 
                     
@@ -574,13 +578,11 @@
                             lastAlarmedTime = currentTimeStr;
                         }
                     } else if (item.formattedRegTime < currentTimeStr) {
-                        // 목표 레지 시간은 지났지만 맥레레는 안 지난 경우 (일반 텍스트로 유지)
-                        row.classList.remove('highlight');
-                        row.classList.remove('expired-reg');
+                        // 2. 맥레레는 안 지났지만, 유저의 목표 레지 시간은 지남: 노란색
+                        row.className = 'expired-reg';
                     } else {
-                        // 목표 레지 시간이 아직 안 온 경우
-                        row.classList.remove('highlight');
-                        row.classList.remove('expired-reg');
+                        // 3. 둘 다 아직 지나지 않음: 기본 처리 (클래스 없음)
+                        row.className = '';
                         
                         if (!nextAlarmFound) {
                             let bbLabel = activeTargetBB === null ? "Max Late" : `${activeTargetBB}BB`;
