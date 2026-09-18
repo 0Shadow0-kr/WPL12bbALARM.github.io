@@ -155,7 +155,7 @@
             "스텝업 터보 18억 GTD": { maxReg: 53, blindUp: 4, startChip: 6000 },
             "스텝업 터보 7억 GTD": { maxReg: 45, blindUp: 4, startChip: 6000 },
             "스텝업 터보 9억 GTD": { maxReg: 45, blindUp: 4, startChip: 6000 },
-            "워밍업 20억 GTD": { maxReg: 77, blindUp: 5, startChip: 10000 },
+            "워밍업 20억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 }, /* 5에서 6으로 수정 */
             "워밍업 25억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
             "워밍업 35억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
             "워밍업 40억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
@@ -350,7 +350,7 @@
             for (let i = 1; i < blinds.length; i++) {
                 let bb = spec.startChip / blinds[i];
                 if (bb < targetBB) {
-                    targetLevel = i - 1; 
+                    targetLevel = i; // 수정: -1 제거 (정확한 수식 반영)
                     break;
                 }
             }
