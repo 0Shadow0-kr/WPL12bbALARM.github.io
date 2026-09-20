@@ -155,7 +155,7 @@
             "스텝업 터보 18억 GTD": { maxReg: 53, blindUp: 4, startChip: 6000 },
             "스텝업 터보 7억 GTD": { maxReg: 45, blindUp: 4, startChip: 6000 },
             "스텝업 터보 9억 GTD": { maxReg: 45, blindUp: 4, startChip: 6000 },
-            "워밍업 20억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 }, /* 6으로 유지 */
+            "워밍업 20억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 }, 
             "워밍업 25억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
             "워밍업 35억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
             "워밍업 40억 GTD": { maxReg: 77, blindUp: 6, startChip: 10000 },
@@ -350,7 +350,7 @@
             for (let i = 1; i < blinds.length; i++) {
                 let bb = spec.startChip / blinds[i];
                 if (bb < targetBB) {
-                    targetLevel = i - 1; // 다시 -1 적용
+                    targetLevel = i - 1; 
                     break;
                 }
             }
@@ -488,14 +488,13 @@
                 return true;
             }).map(item => {
                 let dynamicRegTime = calculateRegTime(item.time, item.name, activeTargetBB);
-                // 맥스 레잇 시간 계산 (targetBB에 null 전달)
                 let maxRegTime = calculateRegTime(item.time, item.name, null); 
                 
                 return {
                     ...item,
                     regTime: dynamicRegTime,
                     formattedRegTime: formatTimeStr(dynamicRegTime),
-                    formattedMaxRegTime: formatTimeStr(maxRegTime) // 맥레레 시간 저장
+                    formattedMaxRegTime: formatTimeStr(maxRegTime)
                 };
             }).sort((a, b) => a.formattedRegTime.localeCompare(b.formattedRegTime));
 
@@ -510,7 +509,6 @@
             tbody.innerHTML = '';
             
             if (filteredSchedule.length === 0) {
-                // colspan을 3에서 4로 수정
                 tbody.innerHTML = `<tr><td colspan="4" style="color:#888; padding: 20px;">조건에 맞는 토너먼트가 없습니다.</td></tr>`;
                 return;
             }
@@ -519,16 +517,13 @@
                 const tr = document.createElement('tr');
                 tr.id = `row-${index}`;
                 
-                // 조건별 스타일링 및 숨김 처리 로직
-                if (item.formattedMaxRegTime < currentTimeStr) {
-                    // 1. 맥레레가 지난 토너: 아예 숨김(삭제) 처리
+                // 수정된 부분: < 에서 <= 로 변경하여 정각(00초)에 바로 숨김 처리
+                if (item.formattedMaxRegTime <= currentTimeStr) {
                     tr.style.display = 'none';
                 } else if (item.formattedRegTime < currentTimeStr) {
-                    // 2. 맥레레는 안 지났지만 유저 목표 시간이 지난 토너: 노란색
                     tr.className = 'expired-reg';
                 }
 
-                // <td> 태그에 item.formattedMaxRegTime 열 추가
                 tr.innerHTML = `
                     <td>${item.time}</td>
                     <td>${item.name}</td>
@@ -567,25 +562,26 @@
                 const row = document.getElementById(`row-${index}`);
                 if (!row) return;
 
-                if (item.formattedMaxRegTime < currentTimeStr) {
-                    // 1. 맥레레 지남: 화면에서 완전히 숨김
+                // 수정된 부분: 화면 숨김 처리 전에 정각 알람을 먼저 체크하여 무조건 울리게 보장
+                if (item.formattedRegTime === currentTimeStr) {
+                    if (lastAlarmedTime !== currentTimeStr) {
+                        playAlarm(item.name);
+                        lastAlarmedTime = currentTimeStr;
+                    }
+                }
+
+                // 수정된 부분: < 에서 <= 로 변경하여 정각(00초)에 즉시 숨김
+                if (item.formattedMaxRegTime <= currentTimeStr) {
                     row.style.display = 'none';
                     row.className = ''; 
                 } else {
                     row.style.display = ''; 
                     
                     if (item.formattedRegTime === currentTimeStr) {
-                        // 목표 레지 시간 정각 (하이라이트 및 알람)
                         row.className = 'highlight';
-                        if (lastAlarmedTime !== currentTimeStr) {
-                            playAlarm(item.name);
-                            lastAlarmedTime = currentTimeStr;
-                        }
                     } else if (item.formattedRegTime < currentTimeStr) {
-                        // 2. 맥레레는 안 지났지만, 유저의 목표 레지 시간은 지남: 노란색
                         row.className = 'expired-reg';
                     } else {
-                        // 3. 둘 다 아직 지나지 않음: 기본 처리 (클래스 없음)
                         row.className = '';
                         
                         if (!nextAlarmFound) {
