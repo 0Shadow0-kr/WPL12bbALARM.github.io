@@ -10,9 +10,12 @@
         #time-display { font-size: 3em; font-weight: bold; margin: 20px 0; color: #4CAF50; }
         #next-alarm { font-size: 1.5em; margin-bottom: 20px; color: #ff9800; }
         
-        button { background-color: #f5a623; border: none; padding: 15px 30px; font-size: 1.2em; font-weight: bold; border-radius: 5px; cursor: pointer; color: #000; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: background-color 0.2s; margin-bottom: 20px;}
+        .btn-group { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        button { background-color: #f5a623; border: none; padding: 15px 30px; font-size: 1.2em; font-weight: bold; border-radius: 5px; cursor: pointer; color: #000; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: background-color 0.2s; }
         button:hover { filter: brightness(1.1); }
         button.active { background-color: #e53935; color: #fff; }
+        
+        #toggle-past-btn { background-color: #555; color: #fff; }
         
         /* 필터 섹션 레이아웃 2줄 분리 */
         #filter-section { background-color: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; justify-content: center; gap: 15px; align-items: center; width: 90%; max-width: 950px; margin: 0 auto 30px auto; box-sizing: border-box; }
@@ -29,11 +32,10 @@
         th, td { border: 1px solid #444; padding: 10px; text-align: center; }
         th { background-color: #333; color: #f5a623; }
         
-        /* 알람 울릴 때의 주황색 하이라이트 */
+        /* 테이블 행 스타일 */
         .highlight { background-color: #ff9800 !important; color: #000; font-weight: bold; }
-        
-        /* 목표 시간은 지났으나 맥레레가 지나지 않은 토너먼트 (노란색 표시) */
         .expired-reg { background-color: #f5d04c !important; color: #000; font-weight: bold; }
+        .past-tourney { background-color: #2a2a2a !important; color: #777; } /* 이미 지나간 토너먼트 (어둡게) */
         
         @keyframes flash {
             0%, 100% { background-color: #121212; }
@@ -46,14 +48,16 @@
 
     <h1>토너먼트 맞춤형 레지 알람</h1>
     
-    <button id="toggle-btn">알람 켜기 (현재 꺼짐)</button>
+    <div class="btn-group">
+        <button id="toggle-btn">알람 켜기 (현재 꺼짐)</button>
+        <button id="toggle-past-btn">지난 토너 보기 (현재 숨김)</button>
+    </div>
     
     <div id="time-display">00:00:00</div>
     <div id="next-alarm">다음 알람: 계산 중...</div>
 
     <!-- 필터 섹션 -->
     <div id="filter-section">
-        <!-- 첫 번째 줄: 최소/최대 바이인 -->
         <div class="filter-row">
             <div class="filter-group">
                 <label>최소 바이인</label>
@@ -75,7 +79,6 @@
             </div>
         </div>
         
-        <!-- 두 번째 줄: 목표 스택 + 터보/바운티 제외 + 버튼 -->
         <div class="filter-row">
             <div class="filter-group" title="비워두면 Max Late Reg 시간으로 계산됩니다">
                 <label>목표 스택</label>
@@ -103,7 +106,7 @@
                 <th>시작 시간</th>
                 <th>토너먼트명</th>
                 <th id="th-reg-time">12BB Reg. Time</th>
-                <th>Max Late Reg.</th> <!-- 추가된 열 -->
+                <th>Max Late Reg.</th>
             </tr>
         </thead>
         <tbody id="schedule-body">
@@ -112,9 +115,8 @@
     </table>
 
     <script>
-        // 데이터 1: 블라인드 레벨별 정보
         const blinds = [
-            0, // index 0 (더미)
+            0,
             50, 100, 150, 200, 250, 300, 400, 500, 600, 800,
             1000, 1200, 1600, 2000, 2400, 2800, 3200, 4000, 5000, 6000,
             7000, 8000, 10000, 12000, 16000, 20000, 24000, 28000, 32000, 40000,
@@ -123,7 +125,6 @@
             1600000, 2000000, 2400000, 2800000, 3200000, 3600000, 4000000, 5000000, 6000000, 8000000
         ];
 
-        // 데이터 2: 토너먼트 상세 스펙
         const tourneySpecs = {
             "데일리 메인 1,600억 GTD(평일)": { maxReg: 89, blindUp: 6, startChip: 10000 },
             "데일리 미니 메인 150억 GTD(평일)": { maxReg: 77, blindUp: 6, startChip: 10000 },
@@ -195,7 +196,6 @@
             "프리롤 5천만 GTD": { maxReg: 10, blindUp: 2, startChip: 2000 }
         };
 
-        // 기본 토너먼트 리스트
         const rawSchedule = [
             { type: "매일", time: "0:00", name: "비기너스 4억 GTD", buyin: 700000 },
             { type: "매일", time: "0:00", name: "클래식 400억 GTD", buyin: 270000000 },
@@ -324,6 +324,7 @@
 
         let filteredSchedule = []; 
         let alarmEnabled = false;
+        let showPastTournaments = false; // 새로운 변수 (지난 토너먼트 표시 여부)
         let lastAlarmedTime = "";
         let activeTargetBB = 12;
 
@@ -386,6 +387,7 @@
             localStorage.setItem('alarmMaxUnit', document.getElementById('max-unit').value);
             localStorage.setItem('alarmExcludeTurbo', document.getElementById('exclude-turbo').checked);
             localStorage.setItem('alarmExcludeBounty', document.getElementById('exclude-bounty').checked);
+            localStorage.setItem('showPastTournaments', showPastTournaments); // 지난 토너 상태 저장
         }
 
         function loadFilters() {
@@ -416,6 +418,16 @@
             }
             if (localStorage.getItem('alarmExcludeBounty') !== null) {
                 document.getElementById('exclude-bounty').checked = localStorage.getItem('alarmExcludeBounty') === 'true';
+            }
+            
+            // 지난 토너 상태 로드
+            if (localStorage.getItem('showPastTournaments') !== null) {
+                showPastTournaments = localStorage.getItem('showPastTournaments') === 'true';
+                const pastBtn = document.getElementById('toggle-past-btn');
+                if (showPastTournaments) {
+                    pastBtn.textContent = "지난 토너 숨기기 (현재 보임)";
+                    pastBtn.style.backgroundColor = "#4CAF50";
+                }
             }
         }
 
@@ -481,7 +493,6 @@
                 if (item.type === "주말" && !isWeekend) return false;
                 if (item.buyin < minBuyin || item.buyin > maxBuyin) return false;
                 
-                // 터보, 바운티 따로 제외 로직
                 if (excludeTurbo && item.name.includes("터보")) return false;
                 if (excludeBounty && item.name.includes("바운티")) return false;
 
@@ -517,9 +528,13 @@
                 const tr = document.createElement('tr');
                 tr.id = `row-${index}`;
                 
-                // 수정된 부분: < 에서 <= 로 변경하여 정각(00초)에 바로 숨김 처리
+                // 새로운 논리: 지난 토너 보기 상태에 따라 처리
                 if (item.formattedMaxRegTime <= currentTimeStr) {
-                    tr.style.display = 'none';
+                    if (showPastTournaments) {
+                        tr.className = 'past-tourney';
+                    } else {
+                        tr.style.display = 'none';
+                    }
                 } else if (item.formattedRegTime < currentTimeStr) {
                     tr.className = 'expired-reg';
                 }
@@ -534,14 +549,16 @@
             });
         }
 
-        function playAlarm(tournamentName) {
-            if (!alarmEnabled) return;
+        // 다중 토너먼트 알람 버그 수정: 여러 이름을 받아 한번에 읽도록 변경
+        function playAlarm(tournamentNames) {
+            if (!alarmEnabled || tournamentNames.length === 0) return;
             
             document.body.classList.add('flashing');
             setTimeout(() => document.body.classList.remove('flashing'), 5000);
 
             let bbText = activeTargetBB === null ? "맥스 레잇" : `${activeTargetBB}비비`;
-            const utterance = new SpeechSynthesisUtterance(`${tournamentName}, ${bbText} 레지 시간입니다.`);
+            let namesStr = tournamentNames.join(", ");
+            const utterance = new SpeechSynthesisUtterance(`${namesStr}, ${bbText} 레지 시간입니다.`);
             utterance.lang = 'ko-KR';
             utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);
@@ -557,23 +574,25 @@
             document.getElementById('time-display').textContent = `${h}:${m}:${s}`;
 
             let nextAlarmFound = false;
+            let currentMinuteAlarms = []; // 이번 분에 울려야 할 토너먼트 리스트
             
             filteredSchedule.forEach((item, index) => {
                 const row = document.getElementById(`row-${index}`);
                 if (!row) return;
 
-                // 수정된 부분: 화면 숨김 처리 전에 정각 알람을 먼저 체크하여 무조건 울리게 보장
+                // 알람 수집: 현재 시간과 일치하는 모든 토너먼트를 배열에 추가
                 if (item.formattedRegTime === currentTimeStr) {
-                    if (lastAlarmedTime !== currentTimeStr) {
-                        playAlarm(item.name);
-                        lastAlarmedTime = currentTimeStr;
-                    }
+                    currentMinuteAlarms.push(item.name);
                 }
 
-                // 수정된 부분: < 에서 <= 로 변경하여 정각(00초)에 즉시 숨김
                 if (item.formattedMaxRegTime <= currentTimeStr) {
-                    row.style.display = 'none';
-                    row.className = ''; 
+                    if (showPastTournaments) {
+                        row.style.display = '';
+                        row.className = 'past-tourney';
+                    } else {
+                        row.style.display = 'none';
+                        row.className = ''; 
+                    }
                 } else {
                     row.style.display = ''; 
                     
@@ -592,6 +611,12 @@
                     }
                 }
             });
+
+            // 수집된 알람이 있고, 아직 이번 분에 알람을 울리지 않았다면 한 번에 재생
+            if (currentMinuteAlarms.length > 0 && lastAlarmedTime !== currentTimeStr) {
+                playAlarm(currentMinuteAlarms);
+                lastAlarmedTime = currentTimeStr;
+            }
 
             if (!nextAlarmFound) {
                 document.getElementById('next-alarm').textContent = "오늘 조건에 맞는 남은 일정이 없습니다.";
@@ -614,6 +639,27 @@
                 window.speechSynthesis.cancel();
                 document.body.classList.remove('flashing');
             }
+        });
+
+        // "지난 토너 보기" 토글 버튼 이벤트 리스너 추가
+        document.getElementById('toggle-past-btn').addEventListener('click', function() {
+            showPastTournaments = !showPastTournaments;
+            
+            if (showPastTournaments) {
+                this.textContent = "지난 토너 숨기기 (현재 보임)";
+                this.style.backgroundColor = "#4CAF50";
+            } else {
+                this.textContent = "지난 토너 보기 (현재 숨김)";
+                this.style.backgroundColor = "#555";
+            }
+            
+            saveFilters();
+            
+            // 상태 변경 후 화면 즉시 갱신
+            const now = new Date();
+            const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            renderTable(currentTimeStr);
+            updateClock();
         });
 
         document.getElementById('apply-btn').addEventListener('click', function() {
